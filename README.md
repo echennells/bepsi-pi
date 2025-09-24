@@ -1,8 +1,9 @@
 # Bepsi-pi
 
-Code that lives in the bepsi vending machine that does three things:
+Code that lives in the bepsi vending machine that does four things:
 
 - Listens to MATIC/DAI/USDC/USDT payments to `PAYMENT_ADDRESS`, on payment dispenses bepsi
+- Listens to Spark Network (Bitcoin L2) payments via unique addresses per vending pin
 - Listens to an LNbits websockets, on payment dispenses bepsi
 - Listens to discord emoji reaction, on reaction dispenses bubbly
 
@@ -72,3 +73,25 @@ To see logs:
 ```bash
 pm2 logs bepsi-pi
 ```
+
+## Payment Systems
+
+This vending machine supports multiple payment methods:
+
+### Spark Network (Bitcoin L2)
+See [SPARK_SETUP.md](SPARK_SETUP.md) for complete setup instructions including:
+- Wallet generation for each vending pin
+- Environment configuration
+- Token support setup
+- Testing and troubleshooting
+
+### EVM/Polygon
+Configure `PAYMENT_ADDRESS` in `.env` to accept MATIC/DAI/USDC/USDT
+
+### Lightning Network
+Configure `LIGHTNING_LNBIT_URL` in `.env` for LNbits integration
+
+### Solana
+Configure `SOLANA_TREASURY_ADDRESS` in `.env` for Solana payments
+
+The system is resilient - if any payment method is misconfigured, other methods continue working normally.

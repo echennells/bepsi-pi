@@ -11,6 +11,16 @@ async function loadSparkSDK() {
 const { dispenseFromPayments } = require("../machine");
 const { SPARK_PAYMENT_AMOUNT } = require("../env");
 
+// Token configuration - add supported tokens here
+const SUPPORTED_TOKENS = {
+  // Example:
+  // 'YourToken': {
+  //   identifier: 'btkn1...your_token_id...',
+  //   name: 'Your Token Name',
+  //   minAmount: 1.0
+  // }
+};
+
 // Treasury wallet for fund consolidation
 let treasuryWallet = null;
 
@@ -130,6 +140,50 @@ const getPaymentAddressForPin = async (pinNo) => {
 let lastKnownBalance = 0;
 const expectedPayments = new Map(); // Map of expected amounts to pin numbers
 
+// Helper function to check token balance changes
+const checkTokenBalanceChanges = (pinNo, currentTokenBalances, paymentRequest) => {
+  for (const [tokenName, tokenConfig] of Object.entries(SUPPORTED_TOKENS)) {
+    const tokenId = tokenConfig.identifier;
+    const currentTokenBalance = currentTokenBalances.get(tokenId);
+    const currentTokenAmount = currentTokenBalance ? Number(currentTokenBalance.balance) : 0;
+
+    const lastKnownTokenAmount = Number(paymentRequest.lastKnownTokenBalances.get(tokenId) || 0n);
+    const tokenIncrease = currentTokenAmount - lastKnownTokenAmount;
+
+    console.log(`[Spark] DEBUG - Pin ${pinNo} ${tokenName}: current=${currentTokenAmount}, last=${lastKnownTokenAmount}, increase=${tokenIncrease}`);
+
+    if (tokenIncrease > 0) {
+      console.log(`[Spark] 🪙 Token payment received for pin ${pinNo}! ${tokenName} increased by ${tokenIncrease}`);
+      console.log(`[Spark] DEBUG - Pin ${pinNo} ${tokenName}: ${tokenIncrease} >= ${tokenConfig.minAmount} (${tokenIncrease >= tokenConfig.minAmount})`);
+
+      if (tokenIncrease >= tokenConfig.minAmount) {
+        console.log(`[Spark] ✅ TOKEN PAYMENT CONFIRMED for pin ${pinNo}!`);
+        console.log(`[Spark] - Token: ${tokenName}`);
+        console.log(`[Spark] - Expected: ${tokenConfig.minAmount}+`);
+        console.log(`[Spark] - Received: ${tokenIncrease}`);
+        console.log(`[Spark] - Address: ${paymentRequest.address}`);
+
+        // Update token balance tracking
+        paymentRequest.lastKnownTokenBalances.set(tokenId, BigInt(currentTokenAmount));
+
+        // Trigger dispensing
+        console.log(`[Spark] 🥤 Triggering dispensing for pin ${pinNo} (token payment)...`);
+        dispenseFromPayments(pinNo, "spark-token");
+
+        // Schedule token consolidation
+        setTimeout(() => consolidateTokens(pinNo, tokenId), 10000);
+
+        return true; // Payment processed
+      } else {
+        // Update balance even if amount doesn't meet minimum
+        paymentRequest.lastKnownTokenBalances.set(tokenId, BigInt(currentTokenAmount));
+        console.log(`[Spark] ⚠️  Token payment too small for pin ${pinNo}: received ${tokenIncrease} ${tokenName}, need ${tokenConfig.minAmount}+`);
+      }
+    }
+  }
+  return false; // No token payment processed
+};
+
 const checkForPayments = async () => {
   console.log(`[Spark] Checking for payments on ${pinPaymentAddresses.size} pins...`);
   try {
@@ -138,49 +192,67 @@ const checkForPayments = async () => {
       const wallet = await createSparkWalletForPin(pinNo);
       const currentBalance = await wallet.getBalance();
       const currentSats = currentBalance.balance;
+      const currentTokenBalances = currentBalance.tokenBalances;
 
-      console.log(`[Spark] DEBUG - Pin ${pinNo}: current=${Number(currentSats)}, last=${Number(paymentRequest.lastKnownBalance || 0)}`);
+      console.log(`[Spark] DEBUG - Pin ${pinNo}: current=${Number(currentSats)} sats, last=${Number(paymentRequest.lastKnownBalance || 0)} sats`);
 
-      // Initialize balance for this pin if first time
+      // Initialize balances for this pin if first time
       if (!paymentRequest.lastKnownBalance) {
         paymentRequest.lastKnownBalance = currentSats;
         console.log(`[Spark] DEBUG - Pin ${pinNo}: Initialized with balance ${Number(currentSats)} sats`);
+
+        // Initialize token balances
+        if (currentTokenBalances && currentTokenBalances.size > 0) {
+          for (const [tokenId, tokenBalance] of currentTokenBalances) {
+            paymentRequest.lastKnownTokenBalances.set(tokenId, tokenBalance.balance);
+            console.log(`[Spark] DEBUG - Pin ${pinNo}: Initialized token ${tokenId.substring(0, 12)}... with ${Number(tokenBalance.balance)}`);
+          }
+        }
         continue;
       }
 
-      // Check if this pin's balance increased (handle BigInt properly)
-      const currentSatsNum = Number(currentSats);
-      const lastKnownNum = Number(paymentRequest.lastKnownBalance || 0n);
-      const balanceIncrease = currentSatsNum - lastKnownNum;
+      // Check for token payments first
+      const tokenPaymentProcessed = checkTokenBalanceChanges(pinNo, currentTokenBalances, paymentRequest);
 
-      if (balanceIncrease > 0) {
-        console.log(`[Spark] Payment received for pin ${pinNo}! Balance increased by ${balanceIncrease} sats`);
-        console.log(`[Spark] DEBUG - Pin ${pinNo} current balance: ${currentSatsNum} sats`);
-        console.log(`[Spark] DEBUG - Pin ${pinNo} last known balance: ${lastKnownNum} sats`);
+      // If no token payment, check for satoshi payments
+      if (!tokenPaymentProcessed) {
+        // Check if this pin's satoshi balance increased (handle BigInt properly)
+        const currentSatsNum = Number(currentSats);
+        const lastKnownNum = Number(paymentRequest.lastKnownBalance || 0n);
+        const balanceIncrease = currentSatsNum - lastKnownNum;
 
-        const expectedAmount = parseInt(paymentRequest.amount);
-        console.log(`[Spark] DEBUG - Comparing ${balanceIncrease} >= ${expectedAmount} (${balanceIncrease >= expectedAmount})`);
+        if (balanceIncrease > 0) {
+          console.log(`[Spark] Payment received for pin ${pinNo}! Balance increased by ${balanceIncrease} sats`);
+          console.log(`[Spark] DEBUG - Pin ${pinNo} current balance: ${currentSatsNum} sats`);
+          console.log(`[Spark] DEBUG - Pin ${pinNo} last known balance: ${lastKnownNum} sats`);
 
-        if (balanceIncrease >= expectedAmount) {
-          console.log(`[Spark] ✅ PAYMENT CONFIRMED for pin ${pinNo}!`);
-          console.log(`[Spark] - Expected: ${expectedAmount} sats`);
-          console.log(`[Spark] - Received: ${balanceIncrease} sats`);
-          console.log(`[Spark] - Address: ${paymentRequest.address}`);
+          const expectedAmount = parseInt(paymentRequest.amount);
+          console.log(`[Spark] DEBUG - Comparing ${balanceIncrease} >= ${expectedAmount} (${balanceIncrease >= expectedAmount})`);
 
-          // Update balance but keep the payment request active (permanent)
-          paymentRequest.lastKnownBalance = currentSats;
+          if (balanceIncrease >= expectedAmount) {
+            console.log(`[Spark] ✅ SATOSHI PAYMENT CONFIRMED for pin ${pinNo}!`);
+            console.log(`[Spark] - Expected: ${expectedAmount} sats`);
+            console.log(`[Spark] - Received: ${balanceIncrease} sats`);
+            console.log(`[Spark] - Address: ${paymentRequest.address}`);
 
-          // Dispense the product
-          console.log(`[Spark] 🥤 Triggering dispensing for pin ${pinNo}...`);
-          dispenseFromPayments(pinNo, "spark");
+            // Update balance but keep the payment request active (permanent)
+            paymentRequest.lastKnownBalance = currentSats;
 
-          // Schedule fund consolidation after successful payment
-          setTimeout(() => consolidateFunds(pinNo), 10000); // Consolidate 10 seconds after payment
-        } else {
-          // Update balance even if amount doesn't match (partial payment)
-          paymentRequest.lastKnownBalance = currentSats;
-          console.log(`[Spark] ⚠️  Payment too small for pin ${pinNo}: received ${balanceIncrease}, need ${expectedAmount}`);
+            // Dispense the product
+            console.log(`[Spark] 🥤 Triggering dispensing for pin ${pinNo} (satoshi payment)...`);
+            dispenseFromPayments(pinNo, "spark");
+
+            // Schedule fund consolidation after successful payment
+            setTimeout(() => consolidateFunds(pinNo), 10000); // Consolidate 10 seconds after payment
+          } else {
+            // Update balance even if amount doesn't match (partial payment)
+            paymentRequest.lastKnownBalance = currentSats;
+            console.log(`[Spark] ⚠️  Payment too small for pin ${pinNo}: received ${balanceIncrease}, need ${expectedAmount}`);
+          }
         }
+      } else {
+        // Token payment was processed, also update satoshi balance tracking
+        paymentRequest.lastKnownBalance = currentSats;
       }
     }
 
@@ -247,6 +319,64 @@ const consolidateFunds = async (pinNo) => {
   }
 };
 
+const consolidateTokens = async (pinNo, tokenId) => {
+  try {
+    const treasury = await createTreasuryWallet();
+    if (!treasury) {
+      console.log(`[Spark] Treasury not configured, skipping token consolidation for pin ${pinNo}`);
+      return;
+    }
+
+    const pinWallet = await createSparkWalletForPin(pinNo);
+    const balance = await pinWallet.getBalance();
+    const tokenBalances = balance.tokenBalances;
+
+    const tokenBalance = tokenBalances.get(tokenId);
+    if (!tokenBalance) {
+      console.log(`[Spark] No token balance found for consolidation on pin ${pinNo}`);
+      return;
+    }
+
+    const availableTokens = Number(tokenBalance.balance);
+
+    // Only consolidate if there are tokens to move
+    if (availableTokens > 0) {
+      console.log(`[Spark] 🪙 Starting token consolidation for pin ${pinNo}: ${availableTokens} tokens -> ${treasury.sparkAddress}`);
+
+      try {
+        // For now, we'll attempt to transfer all tokens
+        // Note: The exact API for token transfers might be different - this is a placeholder
+        const result = await pinWallet.transferTokens({
+          receiverSparkAddress: treasury.sparkAddress,
+          tokenId: tokenId,
+          amount: availableTokens
+        });
+
+        console.log(`[Spark] ✅ Token consolidation successful for pin ${pinNo}:`);
+        console.log(`[Spark] - Token: ${tokenId.substring(0, 12)}...`);
+        console.log(`[Spark] - Amount: ${availableTokens}`);
+        console.log(`[Spark] - Transaction: ${result.txId || result.transactionId || 'completed'}`);
+
+        // Update the pin's known token balance after consolidation
+        const paymentRequest = pinPaymentAddresses.get(pinNo);
+        if (paymentRequest) {
+          paymentRequest.lastKnownTokenBalances.set(tokenId, 0n);
+        }
+
+      } catch (transferError) {
+        // If transferTokens doesn't exist or fails, log but don't crash
+        console.error(`[Spark] Token transfer method not available or failed:`, transferError.message);
+        console.log(`[Spark] ℹ️  Token consolidation skipped - manual transfer may be needed`);
+      }
+    } else {
+      console.log(`[Spark] No tokens to consolidate for pin ${pinNo}`);
+    }
+
+  } catch (error) {
+    console.error(`[Spark] Token consolidation failed for pin ${pinNo}:`, error.message);
+  }
+};
+
 const cleanupExpiredPaymentRequests = () => {
   const cleanupInterval = 60000; // Check every minute
   const expiryTime = 10 * 60 * 1000; // 10 minutes
@@ -302,7 +432,8 @@ const startSparkListener = async () => {
           amount: SPARK_PAYMENT_AMOUNT || 1000,
           createdAt: Date.now(),
           permanent: true, // Mark as permanent so it never expires
-          lastKnownBalance: 0 // Track balance for this specific wallet
+          lastKnownBalance: 0, // Track satoshi balance
+          lastKnownTokenBalances: new Map() // Track token balances
         };
 
         pinPaymentAddresses.set(pinNo, paymentRequest);
