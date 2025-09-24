@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  bepsi-pi-test:
+    build: .
+    container_name: bepsi-pi-spark-test
+    env_file:
+      - .env.test
+    environment:
+      - NODE_ENV=test
+      # Override environment variables for testing
+      - DISABLE_DISCORD=true
+      - DISABLE_SOLANA=true
+      - DISABLE_LIGHTNING=true
+    volumes:
+      # Mount source code for development
+      - ./src:/app/src:ro
+      - ./index.js:/app/index.js:ro
+      - ./test-spark.js:/app/test-spark.js:ro
+    restart: unless-stopped
+    # Add logging configuration for easier debugging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Keep container running for testing
+    tty: true
+    stdin_open: true

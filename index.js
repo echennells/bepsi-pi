@@ -4,6 +4,7 @@ const { startEvmListener } = require("./src/listeners/evmL");
 const { startSolanaListener } = require("./src/listeners/solanaL");
 const { startMachineChecker } = require("./src/listeners/machineL");
 const { startLightningListener } = require("./src/listeners/lightningL");
+const { startSparkListener } = require("./src/listeners/sparkL");
 const { isServiceEnabled } = require("./src/env");
 
 const main = async () => {
@@ -48,6 +49,16 @@ const main = async () => {
     }
   } else {
     console.log('[' + new Date().toLocaleTimeString() + '] - Lightning listener disabled or misconfigured');
+  }
+
+  if (isServiceEnabled('spark')) {
+    try {
+      startSparkListener();
+    } catch (error) {
+      console.error('❌ Spark listener failed to start:', error.message);
+    }
+  } else {
+    console.log('[' + new Date().toLocaleTimeString() + '] - Spark listener disabled or misconfigured');
   }
 
   // startMachineChecker();

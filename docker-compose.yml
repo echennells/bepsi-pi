@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  bepsi-pi:
+    build: .
+    container_name: bepsi-pi-test
+    env_file:
+      - .env.dev
+    environment:
+      - NODE_ENV=development
+    volumes:
+      # Mount source code for development (optional)
+      - ./src:/app/src:ro
+      - ./index.js:/app/index.js:ro
+    # Uncomment if your app needs network access
+    # ports:
+    #   - "3000:3000"
+    restart: unless-stopped
+    # Add logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

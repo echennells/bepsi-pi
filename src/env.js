@@ -17,6 +17,7 @@ const SERVICE_ENV_VARS = {
   evm: ["PAYMENT_ADDRESS"],
   solana: ["SOLANA_TREASURY_ADDRESS"],
   lightning: ["LIGHTNING_LNBIT_URL"],
+  spark: [], // Spark can work with just individual pin configs, no required globals
   database: ["NOCODB_API_TOKEN"]
 };
 
@@ -41,10 +42,11 @@ for (const [service, missing] of Object.entries(missingByService)) {
 // Only fatal error if NO payment system is configured
 const hasAnyPaymentSystem = process.env.PAYMENT_ADDRESS ||
                            process.env.SOLANA_TREASURY_ADDRESS ||
-                           process.env.LIGHTNING_LNBIT_URL;
+                           process.env.LIGHTNING_LNBIT_URL ||
+                           process.env.SPARK_PAYMENT_AMOUNT; // Spark can work with pin configs
 
 if (!hasAnyPaymentSystem) {
-  console.error("❌ FATAL: No payment system configured. Need at least one of: PAYMENT_ADDRESS, SOLANA_TREASURY_ADDRESS, or LIGHTNING_LNBIT_URL");
+  console.error("❌ FATAL: No payment system configured. Need at least one of: PAYMENT_ADDRESS, SOLANA_TREASURY_ADDRESS, LIGHTNING_LNBIT_URL, or Spark pin configurations");
   process.exit(1);
 }
 
@@ -74,6 +76,7 @@ const {
   PAYMENT_ADDRESS,
   LIGHTNING_LNBIT_URL,
   SOLANA_TREASURY_ADDRESS,
+  SPARK_PAYMENT_AMOUNT,
 } = process.env;
 
 // Only log payment address if EVM service is configured
@@ -88,6 +91,7 @@ module.exports = {
   PAYMENT_ADDRESS,
   LIGHTNING_LNBIT_URL,
   SOLANA_TREASURY_ADDRESS,
+  SPARK_PAYMENT_AMOUNT,
   isServiceEnabled,
   missingByService
 };
