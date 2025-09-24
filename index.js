@@ -3,15 +3,53 @@ const { startDiscordListener } = require("./src/listeners/discordL");
 const { startEvmListener } = require("./src/listeners/evmL");
 const { startSolanaListener } = require("./src/listeners/solanaL");
 const { startMachineChecker } = require("./src/listeners/machineL");
-
 const { startLightningListener } = require("./src/listeners/lightningL");
+const { isServiceEnabled } = require("./src/env");
 
 const main = async () => {
   const abortController = createExitAwareAbortController();
-  startDiscordListener();
-  startEvmListener();
-  startSolanaListener(abortController.signal);
-  startLightningListener();
+
+  // Start services only if they are properly configured and not disabled
+  if (isServiceEnabled('discord')) {
+    try {
+      startDiscordListener();
+    } catch (error) {
+      console.error('❌ Discord listener failed to start:', error.message);
+    }
+  } else {
+    console.log('[' + new Date().toLocaleTimeString() + '] - Discord listener disabled or misconfigured');
+  }
+
+  if (isServiceEnabled('evm')) {
+    try {
+      startEvmListener();
+    } catch (error) {
+      console.error('❌ EVM listener failed to start:', error.message);
+    }
+  } else {
+    console.log('[' + new Date().toLocaleTimeString() + '] - EVM listener disabled or misconfigured');
+  }
+
+  if (isServiceEnabled('solana')) {
+    try {
+      startSolanaListener(abortController.signal);
+    } catch (error) {
+      console.error('❌ Solana listener failed to start:', error.message);
+    }
+  } else {
+    console.log('[' + new Date().toLocaleTimeString() + '] - Solana listener disabled or misconfigured');
+  }
+
+  if (isServiceEnabled('lightning')) {
+    try {
+      startLightningListener();
+    } catch (error) {
+      console.error('❌ Lightning listener failed to start:', error.message);
+    }
+  } else {
+    console.log('[' + new Date().toLocaleTimeString() + '] - Lightning listener disabled or misconfigured');
+  }
+
   // startMachineChecker();
 };
 
