@@ -282,7 +282,7 @@ const startSparkListener = async () => {
 
   try {
     // Load pre-generated payment addresses for all vending machine pins
-    const availablePins = [4, 5, 6, 12, 13, 16]; // From machine.js pinToItem mapping
+    const availablePins = [516, 517, 518, 524, 525, 528]; // Real drink pins
 
     console.log("[Spark] Loading pre-generated wallets for each pin...");
     for (const pinNo of availablePins) {

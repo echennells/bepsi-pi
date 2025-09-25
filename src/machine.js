@@ -9,12 +9,12 @@ const NOCO_CREATE_NEW_PURCHASE_URL =
   "https://nocodb.dctrl.wtf/api/v1/db/data/v1/bepsi/purchases";
 
 const pinToItem = {
-  4: "lime",
-  5: "strawberry",
-  6: "grapefruit",
-  12: "cherry",
-  13: "purple",
-  16: "orange",
+  516: "coke",
+  517: "iced tea",
+  518: "poppi",
+  524: "bubbly",
+  525: "cooler",
+  528: "beer",
 };
 
 const getDispenseItemGivenPin = (pinNo) =>

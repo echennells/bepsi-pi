@@ -3,7 +3,7 @@ const { IssuerSparkWallet } = require("@buildonspark/issuer-sdk");
 async function generateWalletsForPins() {
   console.log("🔧 Generating separate Spark wallets for each vending machine pin...\n");
 
-  const pins = [4, 5, 6, 12, 13, 16];
+  const pins = [516, 517, 518, 524, 525, 528]; // Real drink pins
   const wallets = {};
   let treasuryWallet = null;
 
