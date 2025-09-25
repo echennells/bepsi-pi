@@ -191,7 +191,21 @@ const checkForPayments = async () => {
       for (const [tokenKey, tokenConfig] of Object.entries(SUPPORTED_TOKENS)) {
         try {
           const tokenBalance = await wallet.getTokenBalance(tokenConfig.identifier);
-          const tokenAmount = parseFloat(tokenBalance.balance) / Math.pow(10, tokenBalance.decimals || 0);
+
+          // Debug the raw token balance response
+          console.log(`[Spark] DEBUG - Pin ${pinNo} raw token response:`, JSON.stringify(tokenBalance, null, 2));
+
+          // Handle different possible response formats
+          let rawBalance, decimals;
+          if (typeof tokenBalance === 'object' && tokenBalance !== null) {
+            rawBalance = tokenBalance.balance || tokenBalance.amount || '0';
+            decimals = tokenBalance.decimals || 0;
+          } else {
+            rawBalance = '0';
+            decimals = 0;
+          }
+
+          const tokenAmount = parseFloat(rawBalance) / Math.pow(10, decimals);
           const requiredTokenAmount = tokenConfig.pinAmounts[pinNo];
 
           // Skip if this pin doesn't have a configured token amount
@@ -199,9 +213,9 @@ const checkForPayments = async () => {
             continue;
           }
 
-          console.log(`[Spark] DEBUG - Pin ${pinNo} ${tokenConfig.name}: balance=${tokenAmount}, required=${requiredTokenAmount}`);
+          console.log(`[Spark] DEBUG - Pin ${pinNo} ${tokenConfig.name}: rawBalance=${rawBalance}, decimals=${decimals}, tokenAmount=${tokenAmount}, required=${requiredTokenAmount}`);
 
-          if (tokenAmount >= requiredTokenAmount) {
+          if (tokenAmount >= requiredTokenAmount && !isNaN(tokenAmount)) {
             // Mark as processing immediately to prevent double-processing
             processingPayments.add(pinNo);
 
