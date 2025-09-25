@@ -11,12 +11,29 @@ async function loadSparkSDK() {
 const { dispenseFromPayments } = require("../machine");
 const { SPARK_PAYMENT_AMOUNT } = require("../env");
 
-// Token configuration - add supported tokens here
+// Import pinToItem mapping from machine.js
+const pinToItem = {
+  516: "coke",
+  517: "iced tea",
+  518: "poppi",
+  524: "bubbly",
+  525: "cooler",
+  528: "beer"
+};
+
+// Token configuration - pin-specific amounts
 const SUPPORTED_TOKENS = {
   'BepsiToken': {
     identifier: 'btkn1xecvlqngfwwvw2z38s67rn23r76m2vpkmwavfr9cr6ytzgqufu0ql0a4qk',
     name: 'Bepsi Token',
-    minAmount: 1.0
+    pinAmounts: {
+      516: 1.0, // coke - 1 token
+      517: 1.0, // iced tea - 1 token
+      518: 1.0, // poppi - 1 token
+      524: 1.0, // bubbly - 1 token
+      525: 2.0, // cooler - 2 tokens (alcoholic)
+      528: 2.0  // beer - 2 tokens (alcoholic)
+    }
   }
 };
 
@@ -175,15 +192,23 @@ const checkForPayments = async () => {
         try {
           const tokenBalance = await wallet.getTokenBalance(tokenConfig.identifier);
           const tokenAmount = parseFloat(tokenBalance.balance) / Math.pow(10, tokenBalance.decimals || 0);
+          const requiredTokenAmount = tokenConfig.pinAmounts[pinNo];
 
-          if (tokenAmount >= tokenConfig.minAmount) {
+          // Skip if this pin doesn't have a configured token amount
+          if (!requiredTokenAmount) {
+            continue;
+          }
+
+          console.log(`[Spark] DEBUG - Pin ${pinNo} ${tokenConfig.name}: balance=${tokenAmount}, required=${requiredTokenAmount}`);
+
+          if (tokenAmount >= requiredTokenAmount) {
             // Mark as processing immediately to prevent double-processing
             processingPayments.add(pinNo);
 
             console.log(`[Spark] ✅ TOKEN PAYMENT DETECTED for pin ${pinNo}!`);
             console.log(`[Spark] - Token: ${tokenConfig.name}`);
             console.log(`[Spark] - Balance: ${tokenAmount}`);
-            console.log(`[Spark] - Required: ${tokenConfig.minAmount}`);
+            console.log(`[Spark] - Required: ${requiredTokenAmount}`);
             console.log(`[Spark] - Address: ${paymentRequest.address}`);
 
             // Dispense the product
@@ -196,9 +221,7 @@ const checkForPayments = async () => {
           }
         } catch (tokenError) {
           // Token balance check failed, continue to next token
-          if (tokenError.message && !tokenError.message.includes('not found')) {
-            console.error(`[Spark] Error checking ${tokenConfig.name} balance:`, tokenError.message);
-          }
+          console.error(`[Spark] Error checking ${tokenConfig.name} balance for pin ${pinNo}:`, tokenError.message);
         }
       }
     }
@@ -315,7 +338,11 @@ const startSparkListener = async () => {
     if (Object.keys(SUPPORTED_TOKENS).length > 0) {
       console.log(`[Spark] 🪙 Accepted tokens:`);
       for (const [tokenKey, tokenConfig] of Object.entries(SUPPORTED_TOKENS)) {
-        console.log(`[Spark] - ${tokenConfig.name}: Min ${tokenConfig.minAmount} tokens`);
+        console.log(`[Spark] - ${tokenConfig.name} requirements:`);
+        for (const [pinNo, amount] of Object.entries(tokenConfig.pinAmounts)) {
+          const drinkName = pinToItem[pinNo] || `pin ${pinNo}`;
+          console.log(`[Spark]   Pin ${pinNo} (${drinkName}): ${amount} tokens`);
+        }
       }
     }
 
