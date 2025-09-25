@@ -43,8 +43,8 @@ async function sweepAllFunds() {
 
       console.log(`📊 ${config.name} balance: ${currentBalance} sats`);
 
-      if (currentBalance > 100) { // Keep small amount for fees
-        const amountToSend = currentBalance - 50; // Keep 50 sats for fees
+      if (currentBalance > 0) { // Transfer all available sats
+        const amountToSend = currentBalance; // Transfer everything
 
         console.log(`🚀 Transferring ${amountToSend} sats from ${config.name}...`);
 

@@ -97,9 +97,10 @@ The system will display the payment addresses:
 - **Detection time**: Within 5 seconds
 
 ### Token Payments
-- **Support**: Currently no tokens configured (can be added in src/listeners/sparkL.js)
-- **Send to**: Same pin addresses
-- **Detection time**: Within 5 seconds when tokens are configured
+- **Bepsi Token**: Minimum 1.0 token per payment
+  - Token ID: `btkn1xecvlqngfwwvw2z38s67rn23r76m2vpkmwavfr9cr6ytzgqufu0ql0a4qk`
+- **Send to**: Same pin addresses as satoshi payments
+- **Detection time**: Within 5 seconds
 
 ## Monitoring & Logs
 
@@ -157,9 +158,10 @@ Edit the target address in the script before running.
 - Check logs for balance updates every 5 seconds
 
 ### Token payment not working
-- Tokens must be configured in `src/listeners/sparkL.js` SUPPORTED_TOKENS
-- Ensure token ID matches exactly in the configuration
+- Bepsi Token is now configured with ID: `btkn1xecvlqngfwwvw2z38s67rn23r76m2vpkmwavfr9cr6ytzgqufu0ql0a4qk`
+- Minimum payment is 1.0 token
 - Token balance changes are tracked separately from satoshi balance
+- Check logs for "TOKEN PAYMENT DETECTED" messages
 
 ### Consolidation errors
 - Treasury wallet is optional - payments work without it
@@ -185,12 +187,18 @@ Each pin maintains:
 - Satoshi balance tracking
 - Token balance tracking (per token type)
 
-## Adding Token Support
+## Adding More Token Support
 
-To accept Spark tokens, edit `src/listeners/sparkL.js`:
+The Bepsi Token is already configured. To accept additional Spark tokens, edit `src/listeners/sparkL.js`:
 
 ```javascript
 const SUPPORTED_TOKENS = {
+  'BepsiToken': {
+    identifier: 'btkn1xecvlqngfwwvw2z38s67rn23r76m2vpkmwavfr9cr6ytzgqufu0ql0a4qk',
+    name: 'Bepsi Token',
+    minAmount: 1.0
+  },
+  // Add more tokens here:
   'YourToken': {
     identifier: 'btkn1...your_token_id...',
     name: 'Your Token Name',
