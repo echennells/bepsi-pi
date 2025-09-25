@@ -187,8 +187,7 @@ const checkForPayments = async () => {
         continue;
       }
 
-      // Check for token payments - use tokenBalances from main balance call
-      const currentBalance = await wallet.getBalance();
+      // Check for token payments - use tokenBalances from the balance we already fetched
       console.log(`[Spark] DEBUG - Pin ${pinNo} full balance response:`, {
         balance: currentBalance.balance.toString(),
         tokenBalances: Array.from(currentBalance.tokenBalances.entries())
