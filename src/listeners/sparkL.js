@@ -187,25 +187,16 @@ const checkForPayments = async () => {
         continue;
       }
 
-      // Check for token payments
+      // Check for token payments - use tokenBalances from main balance call
+      const currentBalance = await wallet.getBalance();
+      console.log(`[Spark] DEBUG - Pin ${pinNo} full balance response:`, {
+        balance: currentBalance.balance.toString(),
+        tokenBalances: Array.from(currentBalance.tokenBalances.entries())
+      });
+
+      // Check tokens in the tokenBalances Map
       for (const [tokenKey, tokenConfig] of Object.entries(SUPPORTED_TOKENS)) {
         try {
-          const tokenBalance = await wallet.getTokenBalance(tokenConfig.identifier);
-
-          // Debug the raw token balance response
-          console.log(`[Spark] DEBUG - Pin ${pinNo} raw token response:`, JSON.stringify(tokenBalance, null, 2));
-
-          // Handle different possible response formats
-          let rawBalance, decimals;
-          if (typeof tokenBalance === 'object' && tokenBalance !== null) {
-            rawBalance = tokenBalance.balance || tokenBalance.amount || '0';
-            decimals = tokenBalance.decimals || 0;
-          } else {
-            rawBalance = '0';
-            decimals = 0;
-          }
-
-          const tokenAmount = parseFloat(rawBalance) / Math.pow(10, decimals);
           const requiredTokenAmount = tokenConfig.pinAmounts[pinNo];
 
           // Skip if this pin doesn't have a configured token amount
@@ -213,25 +204,41 @@ const checkForPayments = async () => {
             continue;
           }
 
-          console.log(`[Spark] DEBUG - Pin ${pinNo} ${tokenConfig.name}: rawBalance=${rawBalance}, decimals=${decimals}, tokenAmount=${tokenAmount}, required=${requiredTokenAmount}`);
+          // Check if this token exists in the tokenBalances Map
+          if (currentBalance.tokenBalances.has(tokenConfig.identifier)) {
+            const tokenData = currentBalance.tokenBalances.get(tokenConfig.identifier);
 
-          if (tokenAmount >= requiredTokenAmount && !isNaN(tokenAmount)) {
-            // Mark as processing immediately to prevent double-processing
-            processingPayments.add(pinNo);
+            console.log(`[Spark] DEBUG - Pin ${pinNo} found token data:`, tokenData);
 
-            console.log(`[Spark] ✅ TOKEN PAYMENT DETECTED for pin ${pinNo}!`);
-            console.log(`[Spark] - Token: ${tokenConfig.name}`);
-            console.log(`[Spark] - Balance: ${tokenAmount}`);
-            console.log(`[Spark] - Required: ${requiredTokenAmount}`);
-            console.log(`[Spark] - Address: ${paymentRequest.address}`);
+            let tokenAmount = 0;
+            if (tokenData && tokenData.balance) {
+              const rawBalance = parseFloat(tokenData.balance);
+              const decimals = tokenData.decimals || 0;
+              tokenAmount = rawBalance / Math.pow(10, decimals);
+            }
 
-            // Dispense the product
-            console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
-            dispenseFromPayments(pinNo, "spark");
+            console.log(`[Spark] DEBUG - Pin ${pinNo} ${tokenConfig.name}: tokenAmount=${tokenAmount}, required=${requiredTokenAmount}`);
 
-            // Consolidate ALL funds immediately after dispensing
-            setTimeout(() => consolidateAllFunds(pinNo), 5000);
-            break;
+            if (tokenAmount >= requiredTokenAmount && !isNaN(tokenAmount)) {
+              // Mark as processing immediately to prevent double-processing
+              processingPayments.add(pinNo);
+
+              console.log(`[Spark] ✅ TOKEN PAYMENT DETECTED for pin ${pinNo}!`);
+              console.log(`[Spark] - Token: ${tokenConfig.name}`);
+              console.log(`[Spark] - Balance: ${tokenAmount}`);
+              console.log(`[Spark] - Required: ${requiredTokenAmount}`);
+              console.log(`[Spark] - Address: ${paymentRequest.address}`);
+
+              // Dispense the product
+              console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
+              dispenseFromPayments(pinNo, "spark");
+
+              // Consolidate ALL funds immediately after dispensing
+              setTimeout(() => consolidateAllFunds(pinNo), 5000);
+              break;
+            }
+          } else {
+            console.log(`[Spark] DEBUG - Pin ${pinNo} ${tokenConfig.name}: Token not found in tokenBalances Map`);
           }
         } catch (tokenError) {
           // Token balance check failed, continue to next token
