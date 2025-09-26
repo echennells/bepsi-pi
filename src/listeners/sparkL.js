@@ -69,8 +69,6 @@ const SUPPORTED_TOKENS = getSupportedTokens();
 const pinPaymentAddresses = new Map();
 // Store separate wallet for each pin
 const pinWallets = new Map();
-// Track pins currently processing payments to prevent double-dispensing
-const processingPayments = new Set();
 // Track recent successful payments to prevent immediate sweeping
 const recentPayments = new Map(); // pinNo -> timestamp
 
@@ -165,11 +163,6 @@ const checkForPayments = async () => {
   try {
     // Check each pin wallet for payments
     for (const [pinNo, paymentRequest] of pinPaymentAddresses) {
-      // Skip if this pin is already processing a payment
-      if (processingPayments.has(pinNo)) {
-        continue;
-      }
-
       const wallet = await getWalletForProduct(pinNo);
       const currentBalance = await wallet.getBalance();
       const currentSatsNum = Number(currentBalance.balance);
@@ -180,9 +173,6 @@ const checkForPayments = async () => {
 
       // Check for satoshi payment INCREASE (but not on initial scan)
       if (currentSatsNum >= requiredAmount && currentSatsNum > previousSats && initialBalanceScanComplete) {
-        // Mark as processing immediately to prevent double-processing
-        processingPayments.add(pinNo);
-
         console.log(`[Spark] ✅ PAYMENT DETECTED for pin ${pinNo}!`);
         console.log(`[Spark] - New balance: ${currentSatsNum} sats (was ${previousSats})`);
         console.log(`[Spark] - Increase: ${currentSatsNum - previousSats} sats`);
@@ -198,9 +188,6 @@ const checkForPayments = async () => {
         // Dispense the product
         console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
         dispenseFromPayments(pinNo, "spark");
-
-        // Clear processing flag after a delay
-        setTimeout(() => processingPayments.delete(pinNo), 10000);
         continue;
       }
 
@@ -240,9 +227,6 @@ const checkForPayments = async () => {
           // Check for token payment INCREASE (but not on initial scan)
           const paymentAmount = tokenAmount - previousTokenAmount;
           if (paymentAmount >= requiredTokenAmount && tokenAmount > previousTokenAmount && !isNaN(tokenAmount) && initialBalanceScanComplete) {
-            // Mark as processing immediately to prevent double-processing
-            processingPayments.add(pinNo);
-
             console.log(`[Spark] ✅ TOKEN PAYMENT DETECTED for pin ${pinNo}!`);
             console.log(`[Spark] - Token: ${tokenConfig.name}`);
             console.log(`[Spark] - New balance: ${tokenAmount} (was ${previousTokenAmount})`);
@@ -259,9 +243,6 @@ const checkForPayments = async () => {
             // Dispense the product
             console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
             dispenseFromPayments(pinNo, "spark");
-
-            // Clear processing flag after a delay
-            setTimeout(() => processingPayments.delete(pinNo), 10000);
             break;
           }
 
