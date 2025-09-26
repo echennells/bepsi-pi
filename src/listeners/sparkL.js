@@ -104,7 +104,7 @@ const getTreasuryAddress = () => {
 };
 
 
-const createSparkWalletForPin = async (pinNo) => {
+const getWalletForProduct = async (pinNo) => {
   if (pinWallets.has(pinNo)) {
     return pinWallets.get(pinNo);
   }
@@ -131,7 +131,7 @@ const createSparkWalletForPin = async (pinNo) => {
 
 const getPaymentAddressForPin = async (pinNo) => {
   try {
-    const wallet = await createSparkWalletForPin(pinNo);
+    const wallet = await getWalletForProduct(pinNo);
 
     // For now, we'll use the same wallet address for all pins
     // In a more sophisticated setup, you might derive different addresses per pin
@@ -170,7 +170,7 @@ const checkForPayments = async () => {
         continue;
       }
 
-      const wallet = await createSparkWalletForPin(pinNo);
+      const wallet = await getWalletForProduct(pinNo);
       const currentBalance = await wallet.getBalance();
       const currentSatsNum = Number(currentBalance.balance);
       const requiredAmount = parseInt(paymentRequest.amount);
@@ -306,7 +306,7 @@ const sweepAllFundsToTreasury = async () => {
 
   for (const pinNo of allPins) {
     try {
-      const pinWallet = await createSparkWalletForPin(pinNo);
+      const pinWallet = await getWalletForProduct(pinNo);
       const balance = await pinWallet.getBalance();
       const availableSats = Number(balance.balance);
 
@@ -368,7 +368,7 @@ const startSparkListener = async () => {
         const { address } = getPinConfig(pinNo);
 
         // Initialize the wallet (this verifies the mnemonic works)
-        await createSparkWalletForPin(pinNo);
+        await getWalletForProduct(pinNo);
 
         // Get pin-specific sats amount, fallback to default
         const pinSpecificAmount = process.env[`SPARK_PIN_${pinNo}_AMOUNT`];
