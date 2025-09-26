@@ -347,7 +347,7 @@ const startSparkListener = async () => {
 
         // Get pin-specific sats amount, fallback to default
         const pinSpecificAmount = process.env[`SPARK_PIN_${pinNo}_AMOUNT`];
-        const amount = pinSpecificAmount ? parseInt(pinSpecificAmount) : (parseInt(process.env.SPARK_PAYMENT_AMOUNT) || 1000);
+        const amount = pinSpecificAmount ? parseInt(pinSpecificAmount) : (parseInt(process.env.SPARK_PAYMENT_AMOUNT) || 500);
 
         const paymentRequest = {
           pinNo,
