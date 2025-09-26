@@ -31,27 +31,26 @@ Add the generated values to your `.env` file:
 SPARK_PAYMENT_AMOUNT=1000  # Minimum satoshis required for payment
 
 # Pin wallets (copy ALL from generate-pin-wallets.js output)
-SPARK_PIN_4_ADDRESS=sp1pgssy9ym6tyx6938p2yk0dadkkkvpwnyagk4t8suxs899w8q5szjm3hwg47knu
-SPARK_PIN_4_MNEMONIC=section sunny trick gas warfare crime trash recall tuition relief illegal soccer
+SPARK_PIN_516_ADDRESS=your_spark_pin_516_address_here
+SPARK_PIN_516_MNEMONIC=your_spark_pin_516_mnemonic_here
 
-SPARK_PIN_5_ADDRESS=sp1pgssy38nwhhrjr7yt2fkcerhdw9qthzn343k7nnqkawv92udwdycdq222ujkv3
-SPARK_PIN_5_MNEMONIC=enlist lunch much comfort trust dice gas wife cement bus trouble desert
+SPARK_PIN_517_ADDRESS=your_spark_pin_517_address_here
+SPARK_PIN_517_MNEMONIC=your_spark_pin_517_mnemonic_here
 
-SPARK_PIN_6_ADDRESS=sp1pgssxlvhd0vdjvy8ddrx3yn0wt743l729jt62zmwfz5xy55gwezkqnslmg28kc
-SPARK_PIN_6_MNEMONIC=gown wild garlic usual airport tribe strategy trust pupil predict peace token
+SPARK_PIN_518_ADDRESS=your_spark_pin_518_address_here
+SPARK_PIN_518_MNEMONIC=your_spark_pin_518_mnemonic_here
 
-SPARK_PIN_12_ADDRESS=sp1pgss8jg88qc5nqx07vm66th466t3nv7vjd53lgvdhk04naataemlu36jsv3kmm
-SPARK_PIN_12_MNEMONIC=any trim end reason gown mail water enemy drum siren roof lecture
+SPARK_PIN_524_ADDRESS=your_spark_pin_524_address_here
+SPARK_PIN_524_MNEMONIC=your_spark_pin_524_mnemonic_here
 
-SPARK_PIN_13_ADDRESS=sp1pgssywfwq8fve8qtknwa578avngrf46vmqft2d24yle5wlzsnv4h69akyh88sn
-SPARK_PIN_13_MNEMONIC=impulse snow charge debris expect black enforce improve dirt voice neutral scissors
+SPARK_PIN_525_ADDRESS=your_spark_pin_525_address_here
+SPARK_PIN_525_MNEMONIC=your_spark_pin_525_mnemonic_here
 
-SPARK_PIN_16_ADDRESS=sp1pgssyd7nuauynquyt7ya8ju2y0ttwr5gkm5xp2263ejhax59kcgq0yrxehd9tj
-SPARK_PIN_16_MNEMONIC=convince accident settle author clerk avoid age banana sell slush around artist
+SPARK_PIN_528_ADDRESS=your_spark_pin_528_address_here
+SPARK_PIN_528_MNEMONIC=your_spark_pin_528_mnemonic_here
 
 # Treasury wallet for automatic fund consolidation (optional but recommended)
-SPARK_TREASURY_ADDRESS=sp1pgssxhfa0shaxavasuqeajv75z7j4c3hny56x5x995jy4d0kwz09nt3ewdc9fh
-SPARK_TREASURY_MNEMONIC=dad spell crumble coral year firm chief ripple industry soldier faith drastic
+SPARK_TREASURY_ADDRESS=your_treasury_address_here
 ```
 
 ### 3. Install Dependencies
@@ -72,12 +71,12 @@ The system will display the payment addresses:
 
 ```
 [Spark] 🎯 Vending machine ready! Each pin has unique address:
-[Spark] Pin 4: sp1pgssy9ym6tyx6938p2yk0dadkkkvpwnyagk4t8suxs899w8q5szjm3hwg47knu
-[Spark] Pin 5: sp1pgssy38nwhhrjr7yt2fkcerhdw9qthzn343k7nnqkawv92udwdycdq222ujkv3
-[Spark] Pin 6: sp1pgssxlvhd0vdjvy8ddrx3yn0wt743l729jt62zmwfz5xy55gwezkqnslmg28kc
-[Spark] Pin 12: sp1pgss8jg88qc5nqx07vm66th466t3nv7vjd53lgvdhk04naataemlu36jsv3kmm
-[Spark] Pin 13: sp1pgssywfwq8fve8qtknwa578avngrf46vmqft2d24yle5wlzsnv4h69akyh88sn
-[Spark] Pin 16: sp1pgssyd7nuauynquyt7ya8ju2y0ttwr5gkm5xp2263ejhax59kcgq0yrxehd9tj
+[Spark] Pin 516: sp1pgss[example_address_redacted]
+[Spark] Pin 517: sp1pgss[example_address_redacted]
+[Spark] Pin 518: sp1pgss[example_address_redacted]
+[Spark] Pin 524: sp1pgss[example_address_redacted]
+[Spark] Pin 525: sp1pgss[example_address_redacted]
+[Spark] Pin 528: sp1pgss[example_address_redacted]
 ```
 
 ## Pin to Product Mapping
