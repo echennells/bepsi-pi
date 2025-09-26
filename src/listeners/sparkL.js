@@ -9,7 +9,6 @@ async function loadSparkSDK() {
   return IssuerSparkWallet;
 }
 const { dispenseFromPayments } = require("../machine");
-const { SPARK_PAYMENT_AMOUNT } = require("../env");
 
 // Get pin configuration from environment variables
 const getVendingPins = () => {
@@ -69,8 +68,6 @@ const SUPPORTED_TOKENS = getSupportedTokens();
 const pinPaymentAddresses = new Map();
 // Store separate wallet for each pin
 const pinWallets = new Map();
-// Track recent successful payments to prevent immediate sweeping
-const recentPayments = new Map(); // pinNo -> timestamp
 
 // Track previous balances to detect INCREASES only
 const previousSatsBalances = new Map();
@@ -127,37 +124,6 @@ const getWalletForProduct = async (pinNo) => {
   }
 };
 
-const getPaymentAddressForPin = async (pinNo) => {
-  try {
-    const wallet = await getWalletForProduct(pinNo);
-
-    // For now, we'll use the same wallet address for all pins
-    // In a more sophisticated setup, you might derive different addresses per pin
-    const sparkAddress = wallet.sparkAddress;
-
-    // Get pin-specific sats amount, fallback to default
-    const pinSpecificAmount = process.env[`SPARK_PIN_${pinNo}_AMOUNT`];
-    const amount = pinSpecificAmount ? parseInt(pinSpecificAmount) : (parseInt(process.env.SPARK_PAYMENT_AMOUNT) || 1000);
-
-    const paymentRequest = {
-      pinNo,
-      address: sparkAddress,
-      amount: amount,
-      createdAt: Date.now()
-    };
-
-    pinPaymentAddresses.set(pinNo, paymentRequest);
-
-    console.log(`[Spark] Payment address for pin ${pinNo}: ${sparkAddress}`);
-    console.log(`[Spark] Expected amount: ${paymentRequest.amount} sats`);
-
-    return paymentRequest;
-
-  } catch (error) {
-    console.error(`[Spark] Failed to get payment address for pin ${pinNo}:`, error.message);
-    throw error;
-  }
-};
 
 const checkForPayments = async () => {
   try {
@@ -182,8 +148,6 @@ const checkForPayments = async () => {
         // Update stored balance
         previousSatsBalances.set(pinNo, currentSatsNum);
 
-        // Track this payment to delay sweeping
-        recentPayments.set(pinNo, Date.now());
 
         // Dispense the product
         console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
@@ -237,8 +201,6 @@ const checkForPayments = async () => {
             // Update stored token balance
             previousTokenBalances.set(tokenBalanceKey, tokenAmount);
 
-            // Track this payment to delay sweeping
-            recentPayments.set(pinNo, Date.now());
 
             // Dispense the product
             console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
@@ -414,5 +376,4 @@ const startSparkListener = async () => {
 
 module.exports = {
   startSparkListener,
-  getPaymentAddressForPin,
 };

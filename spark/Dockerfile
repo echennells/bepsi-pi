@@ -16,7 +16,7 @@ RUN apk add --no-cache \
 COPY package.json yarn.lock ./
 
 # Install dependencies
-RUN yarn install --frozen-lockfile
+RUN yarn install
 
 # Copy source code
 COPY . .
