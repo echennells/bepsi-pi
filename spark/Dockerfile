@@ -19,7 +19,8 @@ COPY package.json yarn.lock ./
 RUN yarn install
 
 # Copy source code
-COPY . .
+COPY src ./src
+COPY index.js .
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \

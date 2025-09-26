@@ -105,3 +105,17 @@ dist
 .tern-port
 
 .env
+test-wallets-log.txt
+
+# Test and development scripts
+check-balance-now.js
+check-token-test-result.js
+convert-to-spark-addresses.js
+sweep-test-wallets.js
+sweep-torch-wallet.js
+test-address-conversion.js
+test-bepsi-token-events.js
+test-complete-eventemitter.js
+test-eventmitter-proper-address.js
+test-events-with-spark-address.js
+test-payment-events.js

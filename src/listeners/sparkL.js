@@ -94,15 +94,15 @@ const SUPPORTED_TOKENS = getSupportedTokens();
 // ============================================================================
 const pinPaymentAddresses = new Map(); // Payment addresses for each pin
 const pinWallets = new Map(); // Wallet instances for each pin
-const previousSatsBalances = new Map(); // Previous sats balances to detect increases
-const previousTokenBalances = new Map(); // Previous token balances to detect increases
-let initialBalanceScanComplete = false; // Whether initial balance scan is complete
+const previousSatsBalances = new Map();
+const previousTokenBalances = new Map();
+let initialBalanceScanComplete = false;
+const satsProcessedViaEvent = new Set();
 
 // ============================================================================
 // Utility Functions
 // ============================================================================
 
-// Get or create cached wallet instance for a pin
 const getWalletForProduct = async (pinNo) => {
   if (pinWallets.has(pinNo)) {
     return pinWallets.get(pinNo);
@@ -121,6 +121,9 @@ const getWalletForProduct = async (pinNo) => {
 
     pinWallets.set(pinNo, wallet);
     console.log(`[Spark] Initialized wallet for pin ${pinNo}: ${wallet.sparkAddress}`);
+
+    setupEventEmitterForPin(pinNo, wallet);
+
     return wallet;
   } catch (error) {
     console.error(`Failed to create Spark wallet for pin ${pinNo}:`, error.message);
@@ -132,43 +135,62 @@ const getWalletForProduct = async (pinNo) => {
 // Payment Detection
 // ============================================================================
 
-// Check all pin wallets for new payments and dispense if found
-const checkForPayments = async () => {
+const setupEventEmitterForPin = (pinNo, wallet) => {
+  wallet.on('transfer:claimed', async (transferId) => {
+    if (!initialBalanceScanComplete) {
+      return;
+    }
+
+    try {
+      const currentBalance = await wallet.getBalance();
+      const currentSatsNum = Number(currentBalance.balance);
+      const previousSats = previousSatsBalances.get(pinNo) || 0;
+      const paymentRequest = pinPaymentAddresses.get(pinNo);
+
+      if (!paymentRequest) {
+        return;
+      }
+
+      const requiredAmount = parseInt(paymentRequest.amount);
+      const satsIncrease = currentSatsNum - previousSats;
+
+      if (satsIncrease > 0 && currentSatsNum >= requiredAmount) {
+        console.log(`[Spark] ✅ SATS PAYMENT DETECTED (EventEmitter) for pin ${pinNo}!`);
+        console.log(`[Spark] - Transfer ID: ${transferId}`);
+        console.log(`[Spark] - Amount: ${satsIncrease} sats`);
+        console.log(`[Spark] - New balance: ${currentSatsNum} sats`);
+        console.log(`[Spark] - Required: ${requiredAmount} sats`);
+        console.log(`[Spark] - Address: ${paymentRequest.address}`);
+
+        previousSatsBalances.set(pinNo, currentSatsNum);
+        satsProcessedViaEvent.add(transferId);
+
+        console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
+        dispenseFromPayments(pinNo, "spark");
+      }
+    } catch (error) {
+      console.error(`[Spark] Error handling transfer event for pin ${pinNo}:`, error.message);
+    }
+  });
+
+  wallet.on('stream:connected', () => {
+    console.log(`[Spark] 🔗 EventEmitter connected for pin ${pinNo} (sats detection active)`);
+  });
+
+  wallet.on('stream:disconnected', (reason) => {
+    console.log(`[Spark] ⚠️  EventEmitter disconnected for pin ${pinNo}: ${reason}`);
+  });
+};
+
+const checkForTokenPayments = async () => {
   try {
-    // Check each pin wallet for payments
     for (const [pinNo, paymentRequest] of pinPaymentAddresses) {
       const wallet = await getWalletForProduct(pinNo);
       const currentBalance = await wallet.getBalance();
       const currentSatsNum = Number(currentBalance.balance);
-      const requiredAmount = parseInt(paymentRequest.amount);
 
-      // Get previous balance
-      const previousSats = previousSatsBalances.get(pinNo) || 0;
-
-      // Check for satoshi payment INCREASE (but not on initial scan)
-      if (currentSatsNum >= requiredAmount && currentSatsNum > previousSats && initialBalanceScanComplete) {
-        console.log(`[Spark] ✅ PAYMENT DETECTED for pin ${pinNo}!`);
-        console.log(`[Spark] - New balance: ${currentSatsNum} sats (was ${previousSats})`);
-        console.log(`[Spark] - Increase: ${currentSatsNum - previousSats} sats`);
-        console.log(`[Spark] - Required: ${requiredAmount} sats`);
-        console.log(`[Spark] - Address: ${paymentRequest.address}`);
-
-        // Update stored balance
-        previousSatsBalances.set(pinNo, currentSatsNum);
-
-
-        // Dispense the product
-        console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
-        dispenseFromPayments(pinNo, "spark");
-        continue;
-      }
-
-      // Always update the tracked balance even if no payment
       previousSatsBalances.set(pinNo, currentSatsNum);
 
-      // Check for token payments - use tokenBalances from the balance we already fetched
-
-      // Check tokens in the tokenBalances Map
       for (const [tokenKey, tokenConfig] of Object.entries(SUPPORTED_TOKENS)) {
         try {
           const requiredTokenAmount = tokenConfig.pinAmounts[pinNo];
@@ -196,10 +218,9 @@ const checkForPayments = async () => {
           const tokenBalanceKey = `${pinNo}_${tokenConfig.identifier}`;
           const previousTokenAmount = previousTokenBalances.get(tokenBalanceKey) || 0;
 
-          // Check for token payment INCREASE (but not on initial scan)
           const paymentAmount = tokenAmount - previousTokenAmount;
           if (paymentAmount >= requiredTokenAmount && tokenAmount > previousTokenAmount && !isNaN(tokenAmount) && initialBalanceScanComplete) {
-            console.log(`[Spark] ✅ TOKEN PAYMENT DETECTED for pin ${pinNo}!`);
+            console.log(`[Spark] ✅ TOKEN PAYMENT DETECTED (Polling) for pin ${pinNo}!`);
             console.log(`[Spark] - Token: ${tokenConfig.name}`);
             console.log(`[Spark] - New balance: ${tokenAmount} (was ${previousTokenAmount})`);
             console.log(`[Spark] - Increase: ${tokenAmount - previousTokenAmount} tokens`);
@@ -225,14 +246,15 @@ const checkForPayments = async () => {
       }
     }
 
-    // Mark initial scan as complete after first full cycle
     if (!initialBalanceScanComplete) {
       initialBalanceScanComplete = true;
-      console.log('[Spark] Initial balance scan complete - now monitoring for payments');
+      console.log('[Spark] Initial balance scan complete');
+      console.log('[Spark] - Sats: EventEmitter (real-time)');
+      console.log('[Spark] - Tokens: Polling (5-second intervals)');
     }
 
   } catch (error) {
-    console.error(`[Spark] Error checking for payments:`, error.message);
+    console.error(`[Spark] Error checking token payments:`, error.message);
   }
 };
 
@@ -358,10 +380,9 @@ const startSparkListener = async () => {
       }
     }
 
-    // Start monitoring for payments
     setInterval(async () => {
-      await checkForPayments();
-    }, 5000); // Check every 5 seconds
+      await checkForTokenPayments();
+    }, 5000);
 
     // Check if treasury is configured
     const treasuryAddress = getTreasuryAddress();

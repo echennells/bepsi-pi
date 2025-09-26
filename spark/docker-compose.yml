@@ -3,18 +3,20 @@ version: '3.8'
 
 services:
   bepsi-pi-dev:
-    build: .
+    build:
+      context: ..
+      dockerfile: spark/Dockerfile
     container_name: bepsi-pi-development-test
     env_file:
-      - .env  # Uses development environment variables
+      - ../.env
     environment:
       - NODE_ENV=development
       - DEV_MODE=true
       - TESTING=true
     volumes:
       # Mount source code for development hot-reloading
-      - ./src:/app/src:ro
-      - ./index.js:/app/index.js:ro
+      - ../src:/app/src:ro
+      - ../index.js:/app/index.js:ro
     ports:
       - "3000:3000"  # Expose for testing
     restart: "no"  # Don't auto-restart in development
