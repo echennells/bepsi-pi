@@ -1,24 +1,31 @@
+# Development/Testing Configuration
 version: '3.8'
 
 services:
-  bepsi-pi:
+  bepsi-pi-dev:
     build: .
-    container_name: bepsi-pi-test
+    container_name: bepsi-pi-development-test
     env_file:
-      - .env.dev
+      - .env  # Uses development environment variables
     environment:
       - NODE_ENV=development
+      - DEV_MODE=true
+      - TESTING=true
     volumes:
-      # Mount source code for development (optional)
+      # Mount source code for development hot-reloading
       - ./src:/app/src:ro
       - ./index.js:/app/index.js:ro
-    # Uncomment if your app needs network access
-    # ports:
-    #   - "3000:3000"
-    restart: unless-stopped
-    # Add logging configuration
+    ports:
+      - "3000:3000"  # Expose for testing
+    restart: "no"  # Don't auto-restart in development
+    # Development logging configuration
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+    # Add development labels
+    labels:
+      - "purpose=development"
+      - "environment=testing"
+      - "production=false"

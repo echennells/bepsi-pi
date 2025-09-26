@@ -1,3 +1,4 @@
+# Development/Testing Container
 # Use Node.js 18 (required by dependencies, despite .nvmrc specifying 16.10.0)
 FROM node:18-alpine
 
