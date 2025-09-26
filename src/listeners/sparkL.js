@@ -29,16 +29,10 @@ const getPinName = (pinNo) => {
 };
 
 // Create mapping of pin numbers to human-readable names
-const getVendingPinsWithNames = () => {
-  const pins = getVendingPins();
-  const pinToItem = {};
-  pins.forEach(pin => {
-    pinToItem[pin] = getPinName(pin);
-  });
-  return pinToItem;
-};
-
-const pinToItem = getVendingPinsWithNames();
+const pinToItem = {};
+getVendingPins().forEach(pin => {
+  pinToItem[pin] = getPinName(pin);
+});
 
 // Build token configuration from environment variables
 // Returns supported tokens with pin-specific amounts
@@ -71,21 +65,6 @@ const getSupportedTokens = () => {
   return tokens;
 };
 
-const SUPPORTED_TOKENS = getSupportedTokens();
-
-// ============================================================================
-// Runtime State
-// ============================================================================
-const pinPaymentAddresses = new Map(); // Payment addresses for each pin
-const pinWallets = new Map(); // Wallet instances for each pin
-const previousSatsBalances = new Map(); // Previous sats balances to detect increases
-const previousTokenBalances = new Map(); // Previous token balances to detect increases
-let initialBalanceScanComplete = false; // Whether initial balance scan is complete
-
-// ============================================================================
-// Utility Functions
-// ============================================================================
-
 // Get Spark wallet address and mnemonic for a specific pin
 const getPinConfig = (pinNo) => {
   const address = process.env[`SPARK_PIN_${pinNo}_ADDRESS`];
@@ -107,6 +86,21 @@ const getTreasuryAddress = () => {
   }
   return address;
 };
+
+const SUPPORTED_TOKENS = getSupportedTokens();
+
+// ============================================================================
+// Runtime State
+// ============================================================================
+const pinPaymentAddresses = new Map(); // Payment addresses for each pin
+const pinWallets = new Map(); // Wallet instances for each pin
+const previousSatsBalances = new Map(); // Previous sats balances to detect increases
+const previousTokenBalances = new Map(); // Previous token balances to detect increases
+let initialBalanceScanComplete = false; // Whether initial balance scan is complete
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
 
 // Get or create cached wallet instance for a pin
 const getWalletForProduct = async (pinNo) => {
@@ -242,14 +236,6 @@ const checkForPayments = async () => {
   }
 };
 
-// Start periodic payment monitoring every 5 seconds
-const monitorPayments = async () => {
-  const checkInterval = 5000; // Check every 5 seconds
-
-  setInterval(async () => {
-    await checkForPayments();
-  }, checkInterval);
-};
 
 // ============================================================================
 // Treasury Management
@@ -373,7 +359,9 @@ const startSparkListener = async () => {
     }
 
     // Start monitoring for payments
-    monitorPayments();
+    setInterval(async () => {
+      await checkForPayments();
+    }, 5000); // Check every 5 seconds
 
     // Check if treasury is configured
     const treasuryAddress = getTreasuryAddress();
