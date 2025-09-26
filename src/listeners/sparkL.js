@@ -1,6 +1,10 @@
+// Dependencies
+const { dispenseFromPayments } = require("../machine");
+
 // Dynamic import for ES modules in CommonJS context
 let IssuerSparkWallet;
 
+// Load and cache the Spark SDK module
 async function loadSparkSDK() {
   if (!IssuerSparkWallet) {
     const module = await import("@buildonspark/issuer-sdk");
@@ -8,18 +12,23 @@ async function loadSparkSDK() {
   }
   return IssuerSparkWallet;
 }
-const { dispenseFromPayments } = require("../machine");
 
-// Get pin configuration from environment variables
+// ============================================================================
+// Configuration
+// ============================================================================
+
+// Get list of vending machine pins from environment
 const getVendingPins = () => {
   const pinsEnv = process.env.VENDING_PINS || '516,517,518,524,525,528';
   return pinsEnv.split(',').map(pin => parseInt(pin.trim()));
 };
 
+// Get human-readable name for a pin
 const getPinName = (pinNo) => {
   return process.env[`PIN_${pinNo}_NAME`] || `pin ${pinNo}`;
 };
 
+// Create mapping of pin numbers to human-readable names
 const getVendingPinsWithNames = () => {
   const pins = getVendingPins();
   const pinToItem = {};
@@ -31,7 +40,8 @@ const getVendingPinsWithNames = () => {
 
 const pinToItem = getVendingPinsWithNames();
 
-// Token configuration from environment variables
+// Build token configuration from environment variables
+// Returns supported tokens with pin-specific amounts
 const getSupportedTokens = () => {
   const tokens = {};
   const pins = getVendingPins();
@@ -63,19 +73,20 @@ const getSupportedTokens = () => {
 
 const SUPPORTED_TOKENS = getSupportedTokens();
 
+// ============================================================================
+// Runtime State
+// ============================================================================
+const pinPaymentAddresses = new Map(); // Payment addresses for each pin
+const pinWallets = new Map(); // Wallet instances for each pin
+const previousSatsBalances = new Map(); // Previous sats balances to detect increases
+const previousTokenBalances = new Map(); // Previous token balances to detect increases
+let initialBalanceScanComplete = false; // Whether initial balance scan is complete
 
-// Store payment addresses for each pin
-const pinPaymentAddresses = new Map();
-// Store separate wallet for each pin
-const pinWallets = new Map();
+// ============================================================================
+// Utility Functions
+// ============================================================================
 
-// Track previous balances to detect INCREASES only
-const previousSatsBalances = new Map();
-const previousTokenBalances = new Map();
-// Track if we've done the initial balance scan to avoid false positives on startup
-let initialBalanceScanComplete = false;
-
-// Get environment variables for each pin
+// Get Spark wallet address and mnemonic for a specific pin
 const getPinConfig = (pinNo) => {
   const address = process.env[`SPARK_PIN_${pinNo}_ADDRESS`];
   const mnemonic = process.env[`SPARK_PIN_${pinNo}_MNEMONIC`];
@@ -87,18 +98,17 @@ const getPinConfig = (pinNo) => {
   return { address, mnemonic };
 };
 
+// Get treasury address for fund consolidation (optional)
 const getTreasuryAddress = () => {
   const address = process.env.SPARK_TREASURY_ADDRESS;
-
   if (!address) {
     console.log("[Spark] Treasury consolidation disabled - missing SPARK_TREASURY_ADDRESS");
     return null;
   }
-
   return address;
 };
 
-
+// Get or create cached wallet instance for a pin
 const getWalletForProduct = async (pinNo) => {
   if (pinWallets.has(pinNo)) {
     return pinWallets.get(pinNo);
@@ -124,7 +134,11 @@ const getWalletForProduct = async (pinNo) => {
   }
 };
 
+// ============================================================================
+// Payment Detection
+// ============================================================================
 
+// Check all pin wallets for new payments and dispense if found
 const checkForPayments = async () => {
   try {
     // Check each pin wallet for payments
@@ -228,6 +242,7 @@ const checkForPayments = async () => {
   }
 };
 
+// Start periodic payment monitoring every 5 seconds
 const monitorPayments = async () => {
   const checkInterval = 5000; // Check every 5 seconds
 
@@ -236,7 +251,11 @@ const monitorPayments = async () => {
   }, checkInterval);
 };
 
-// Sweep all funds from all pin wallets to treasury
+// ============================================================================
+// Treasury Management
+// ============================================================================
+
+// Sweep all funds from pin wallets to treasury address
 const sweepAllFundsToTreasury = async () => {
   const treasuryAddress = getTreasuryAddress();
   if (!treasuryAddress) {
@@ -298,6 +317,11 @@ const sweepAllFundsToTreasury = async () => {
   console.log(`[Spark] Fund sweep complete`);
 };
 
+// ============================================================================
+// Main Entry Point
+// ============================================================================
+
+// Initialize and start the Spark payment listener system
 const startSparkListener = async () => {
   console.log("[Spark] Starting Spark payment listener...");
 
