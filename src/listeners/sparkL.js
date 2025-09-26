@@ -19,13 +19,13 @@ async function loadSparkSDK() {
 
 // Get list of vending machine pins from environment
 const getVendingPins = () => {
-  const pinsEnv = process.env.VENDING_PINS || '516,517,518,524,525,528';
+  const pinsEnv = process.env.SPARK_VENDING_PINS || '516,517,518,524,525,528';
   return pinsEnv.split(',').map(pin => parseInt(pin.trim()));
 };
 
 // Get human-readable name for a pin
 const getPinName = (pinNo) => {
-  return process.env[`PIN_${pinNo}_NAME`] || `pin ${pinNo}`;
+  return process.env[`SPARK_PIN_${pinNo}_NAME`] || `pin ${pinNo}`;
 };
 
 // Create mapping of pin numbers to human-readable names
@@ -41,16 +41,19 @@ const getSupportedTokens = () => {
   const pins = getVendingPins();
 
   // Get token identifiers from env
-  const tokenKeys = process.env.SUPPORTED_TOKEN_KEYS ? process.env.SUPPORTED_TOKEN_KEYS.split(',') : ['BepsiToken'];
+  const tokenKeys = process.env.SPARK_SUPPORTED_TOKEN_KEYS ? process.env.SPARK_SUPPORTED_TOKEN_KEYS.split(',') : ['BepsiToken'];
 
   tokenKeys.forEach(tokenKey => {
-    const identifier = process.env[`${tokenKey.toUpperCase()}_IDENTIFIER`];
-    const name = process.env[`${tokenKey.toUpperCase()}_NAME`] || tokenKey;
+    const identifier = process.env[`SPARK_${tokenKey.toUpperCase()}_IDENTIFIER`];
+    const name = process.env[`SPARK_${tokenKey.toUpperCase()}_NAME`] || tokenKey;
 
     if (identifier) {
       const pinAmounts = {};
       pins.forEach(pin => {
-        const amount = parseFloat(process.env[`${tokenKey.toUpperCase()}_PIN_${pin}_AMOUNT`] || '1.0');
+        const amount = parseFloat(process.env[`SPARK_${tokenKey.toUpperCase()}_PIN_${pin}_AMOUNT`]);
+        if (isNaN(amount)) {
+          throw new Error(`Missing required environment variable: SPARK_${tokenKey.toUpperCase()}_PIN_${pin}_AMOUNT`);
+        }
         pinAmounts[pin] = amount;
       });
 
@@ -345,9 +348,12 @@ const startSparkListener = async () => {
         // Initialize the wallet (this verifies the mnemonic works)
         await getWalletForProduct(pinNo);
 
-        // Get pin-specific sats amount, fallback to default
+        // Get pin-specific sats amount (required)
         const pinSpecificAmount = process.env[`SPARK_PIN_${pinNo}_AMOUNT`];
-        const amount = pinSpecificAmount ? parseInt(pinSpecificAmount) : (parseInt(process.env.SPARK_PAYMENT_AMOUNT) || 500);
+        if (!pinSpecificAmount) {
+          throw new Error(`Missing required environment variable: SPARK_PIN_${pinNo}_AMOUNT`);
+        }
+        const amount = parseInt(pinSpecificAmount);
 
         const paymentRequest = {
           pinNo,
