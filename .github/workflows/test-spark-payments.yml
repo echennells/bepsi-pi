@@ -54,6 +54,7 @@ jobs:
           SPARK_PIN_528_NAME: 'Vodka'
           SPARK_PIN_528_AMOUNT: '2000'
           SPARK_BEPSITOKEN_PIN_528_AMOUNT: '2'
+          SPARK_PAYMENT_AMOUNT: '1000'
           SPARK_PIN_516_ADDRESS: ${{ secrets.SPARK_PIN_516_ADDRESS }}
           SPARK_PIN_516_MNEMONIC: ${{ secrets.SPARK_PIN_516_MNEMONIC }}
           SPARK_PIN_517_ADDRESS: ${{ secrets.SPARK_PIN_517_ADDRESS }}
