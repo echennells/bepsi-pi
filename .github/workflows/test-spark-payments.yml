@@ -68,7 +68,7 @@ jobs:
           SPARK_PIN_525_MNEMONIC: ${{ secrets.SPARK_PIN_525_MNEMONIC }}
           SPARK_PIN_528_ADDRESS: ${{ secrets.SPARK_PIN_528_ADDRESS }}
           SPARK_PIN_528_MNEMONIC: ${{ secrets.SPARK_PIN_528_MNEMONIC }}
-          SPARK_TREASURY_ADDRESS: ${{ secrets.SPARK_TREASURY_ADDRESS }}
+          SPARK_TREASURY_ADDRESS: 'sp1pgssxpfxz9es9ka30f3gk3d2tlp6ef9syzk474s6en5d8495hnh4evfyzmuzfu'
         run: |
           echo "🚀 Starting Spark payment listener..."
           echo "📍 This will run for 55 minutes to test payments"
@@ -84,7 +84,7 @@ jobs:
           SPARK_PIN_524_MNEMONIC: ${{ secrets.SPARK_PIN_524_MNEMONIC }}
           SPARK_PIN_525_MNEMONIC: ${{ secrets.SPARK_PIN_525_MNEMONIC }}
           SPARK_PIN_528_MNEMONIC: ${{ secrets.SPARK_PIN_528_MNEMONIC }}
-          SPARK_TREASURY_ADDRESS: ${{ secrets.SPARK_TREASURY_ADDRESS }}
+          SPARK_TREASURY_ADDRESS: 'sp1pgssxpfxz9es9ka30f3gk3d2tlp6ef9syzk474s6en5d8495hnh4evfyzmuzfu'
         run: |
           cat > final-sweep.js << 'EOFSCRIPT'
           #!/usr/bin/env node
