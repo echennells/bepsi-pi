@@ -12,7 +12,7 @@ on:
 jobs:
   test-payments:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     environment: asdfasdf
 
     steps:
@@ -71,8 +71,8 @@ jobs:
           SPARK_TREASURY_ADDRESS: 'sp1pgss8zk663885kz8ftfexlayqgyfzpj3kjued5vwkz8y9z7646779qy3rk5rpd'
         run: |
           echo "🚀 Starting Spark payment listener..."
-          echo "📍 This will run for 55 minutes to test payments"
-          timeout 55m npm start || true
+          echo "📍 This will run for 15 minutes to test payments"
+          timeout 15m npm start || true
 
       - name: Sweep remaining funds to treasury
         if: always()
