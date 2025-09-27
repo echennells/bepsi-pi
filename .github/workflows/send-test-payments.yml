@@ -29,6 +29,7 @@ on:
 jobs:
   send-payment:
     runs-on: ubuntu-latest
+    environment: asdfasdf
 
     steps:
       - name: Checkout code

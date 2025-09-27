@@ -13,6 +13,7 @@ jobs:
   test-payments:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment: asdfasdf
 
     steps:
       - name: Checkout code
