@@ -1,0 +1,143 @@
+name: Send Test Payments
+
+on:
+  workflow_dispatch:
+    inputs:
+      pin:
+        description: 'Pin number to send payment to (516, 517, 518, 524, 525, 528)'
+        required: true
+        type: choice
+        options:
+          - '516'
+          - '517'
+          - '518'
+          - '524'
+          - '525'
+          - '528'
+      payment_type:
+        description: 'Payment type'
+        required: true
+        type: choice
+        options:
+          - 'sats'
+          - 'tokens'
+
+jobs:
+  send-payment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Send test payment
+        env:
+          PIN: ${{ github.event.inputs.pin }}
+          PAYMENT_TYPE: ${{ github.event.inputs.payment_type }}
+          TEST_WALLET_MNEMONIC: ${{ secrets.TEST_WALLET_MNEMONIC }}
+          SPARK_PIN_516_ADDRESS: ${{ secrets.SPARK_PIN_516_ADDRESS }}
+          SPARK_PIN_516_AMOUNT: '1000'
+          SPARK_BEPSITOKEN_PIN_516_AMOUNT: '1'
+          SPARK_PIN_517_ADDRESS: ${{ secrets.SPARK_PIN_517_ADDRESS }}
+          SPARK_PIN_517_AMOUNT: '1000'
+          SPARK_BEPSITOKEN_PIN_517_AMOUNT: '1'
+          SPARK_PIN_518_ADDRESS: ${{ secrets.SPARK_PIN_518_ADDRESS }}
+          SPARK_PIN_518_AMOUNT: '1000'
+          SPARK_BEPSITOKEN_PIN_518_AMOUNT: '1'
+          SPARK_PIN_524_ADDRESS: ${{ secrets.SPARK_PIN_524_ADDRESS }}
+          SPARK_PIN_524_AMOUNT: '2000'
+          SPARK_BEPSITOKEN_PIN_524_AMOUNT: '2'
+          SPARK_PIN_525_ADDRESS: ${{ secrets.SPARK_PIN_525_ADDRESS }}
+          SPARK_PIN_525_AMOUNT: '2000'
+          SPARK_BEPSITOKEN_PIN_525_AMOUNT: '2'
+          SPARK_PIN_528_ADDRESS: ${{ secrets.SPARK_PIN_528_ADDRESS }}
+          SPARK_PIN_528_AMOUNT: '2000'
+          SPARK_BEPSITOKEN_PIN_528_AMOUNT: '2'
+          SPARK_BEPSITOKEN_IDENTIFIER: ${{ secrets.SPARK_BEPSITOKEN_IDENTIFIER }}
+        run: |
+          cat > send-payment.js << 'EOFSCRIPT'
+          #!/usr/bin/env node
+
+          async function sendTestPayment() {
+            try {
+              const { IssuerSparkWallet } = await import("@buildonspark/issuer-sdk");
+
+              const pin = process.env.PIN;
+              const paymentType = process.env.PAYMENT_TYPE;
+              const testWalletMnemonic = process.env.TEST_WALLET_MNEMONIC;
+
+              if (!testWalletMnemonic) {
+                throw new Error("TEST_WALLET_MNEMONIC not set");
+              }
+
+              const receiverAddress = process.env[`SPARK_PIN_${pin}_ADDRESS`];
+              if (!receiverAddress) {
+                throw new Error(`SPARK_PIN_${pin}_ADDRESS not set`);
+              }
+
+              console.log(`💸 Sending test ${paymentType} payment to pin ${pin}`);
+              console.log(`📍 Receiver: ${receiverAddress}\n`);
+
+              const { wallet } = await IssuerSparkWallet.initialize({
+                mnemonicOrSeed: testWalletMnemonic,
+                options: { network: "MAINNET" }
+              });
+
+              const senderAddress = await wallet.getSparkAddress();
+              console.log(`📤 Sender: ${senderAddress}`);
+
+              const balance = await wallet.getBalance();
+              console.log(`💰 Sender balance: ${balance.balance} sats\n`);
+
+              if (paymentType === 'sats') {
+                const amount = parseInt(process.env[`SPARK_PIN_${pin}_AMOUNT`]);
+                if (!amount) {
+                  throw new Error(`SPARK_PIN_${pin}_AMOUNT not set`);
+                }
+
+                console.log(`Sending ${amount} sats...`);
+                const result = await wallet.transfer({
+                  receiverSparkAddress: receiverAddress,
+                  amountSats: amount
+                });
+                console.log(`✅ Sent! TX: ${result.id}`);
+
+              } else if (paymentType === 'tokens') {
+                const tokenAmount = parseFloat(process.env[`SPARK_BEPSITOKEN_PIN_${pin}_AMOUNT`]);
+                const tokenId = process.env.SPARK_BEPSITOKEN_IDENTIFIER;
+
+                if (!tokenAmount || !tokenId) {
+                  throw new Error(`Token configuration missing for pin ${pin}`);
+                }
+
+                const rawAmount = BigInt(Math.floor(tokenAmount * Math.pow(10, 6)));
+
+                console.log(`Sending ${tokenAmount} BEPSI tokens...`);
+                const result = await wallet.transferTokens({
+                  tokenIdentifier: tokenId,
+                  tokenAmount: rawAmount,
+                  receiverSparkAddress: receiverAddress
+                });
+                console.log(`✅ Sent! TX: ${result}`);
+              }
+
+              console.log("\n🎉 Test payment sent successfully!");
+
+            } catch (error) {
+              console.error("❌ Payment failed:", error.message);
+              process.exit(1);
+            }
+          }
+
+          sendTestPayment();
+          EOFSCRIPT
+
+          node send-payment.js
