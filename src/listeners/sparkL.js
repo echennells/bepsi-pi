@@ -157,7 +157,7 @@ const setupEventEmitterForPin = (pinNo, wallet) => {
       const requiredAmount = parseInt(paymentRequest.amount);
       const satsIncrease = currentSatsNum - previousSats;
 
-      if (satsIncrease >= requiredAmount) {
+      if (currentSatsNum >= requiredAmount && currentSatsNum > previousSats) {
         console.log(`[Spark] ✅ SATS PAYMENT DETECTED (EventEmitter) for pin ${pinNo}!`);
         console.log(`[Spark] - Transfer ID: ${transferId}`);
         console.log(`[Spark] - Amount: ${satsIncrease} sats`);
