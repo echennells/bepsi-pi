@@ -1,6 +1,10 @@
 name: Send Test Payments
 
 on:
+  push:
+    branches:
+      - main
+      - spark-support
   workflow_dispatch:
     inputs:
       pin:
