@@ -1,0 +1,212 @@
+name: Benchmark Spark Payment Speed
+
+on:
+  workflow_dispatch:
+    inputs:
+      num_payments:
+        description: 'Number of payments to send (sats and tokens each)'
+        required: false
+        default: '10'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: asdfasdf
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run payment speed benchmark
+        env:
+          NUM_PAYMENTS: ${{ github.event.inputs.num_payments || '10' }}
+          TEST_WALLET_MNEMONIC: ${{ secrets.TEST_WALLET_MNEMONIC }}
+          SPARK_PIN_516_ADDRESS: ${{ secrets.SPARK_PIN_516_ADDRESS }}
+          SPARK_PIN_516_MNEMONIC: ${{ secrets.SPARK_PIN_516_MNEMONIC }}
+          SPARK_BEPSITOKEN_IDENTIFIER: ${{ secrets.SPARK_BEPSITOKEN_IDENTIFIER }}
+        run: |
+          cat > benchmark-payments.js << 'EOFSCRIPT'
+          #!/usr/bin/env node
+
+          async function benchmarkPayments() {
+            try {
+              const { IssuerSparkWallet } = await import("@buildonspark/issuer-sdk");
+
+              const numPayments = parseInt(process.env.NUM_PAYMENTS || '10');
+              const testWalletMnemonic = process.env.TEST_WALLET_MNEMONIC;
+              const pinAddress = process.env.SPARK_PIN_516_ADDRESS;
+              const pinMnemonic = process.env.SPARK_PIN_516_MNEMONIC;
+              const tokenId = process.env.SPARK_BEPSITOKEN_IDENTIFIER;
+
+              console.log(`🔬 Benchmarking Spark Payment Detection Speed`);
+              console.log(`📊 Testing ${numPayments} sats payments + ${numPayments} token payments\n`);
+
+              // Initialize wallets
+              const { wallet: testWallet } = await IssuerSparkWallet.initialize({
+                mnemonicOrSeed: testWalletMnemonic,
+                options: { network: "MAINNET" }
+              });
+
+              const { wallet: pinWallet } = await IssuerSparkWallet.initialize({
+                mnemonicOrSeed: pinMnemonic,
+                options: { network: "MAINNET" }
+              });
+
+              console.log(`💰 Test wallet balance: ${await testWallet.getBalance().then(b => b.balance)} sats\n`);
+
+              // Track detection times
+              const detectionTimes = [];
+              let detectedCount = 0;
+
+              // Setup event listener for sats payments
+              pinWallet.on('transfer:claimed', async (transferId) => {
+                const detectionTime = Date.now();
+                detectedCount++;
+                console.log(`✅ Payment ${detectedCount} detected! Transfer ID: ${transferId}`);
+
+                // Find matching sent payment
+                const match = detectionTimes.find(p => !p.detectedAt && p.type === 'sats');
+                if (match) {
+                  match.detectedAt = detectionTime;
+                  match.latency = detectionTime - match.sentAt;
+                  console.log(`   ⏱️  Detection latency: ${match.latency}ms\n`);
+                }
+              });
+
+              await new Promise(resolve => setTimeout(resolve, 2000));
+
+              // Benchmark SATS payments
+              console.log(`💸 Sending ${numPayments} sats payments...\n`);
+
+              for (let i = 0; i < numPayments; i++) {
+                const sentAt = Date.now();
+                try {
+                  const result = await testWallet.transfer({
+                    receiverSparkAddress: pinAddress,
+                    amountSats: 1000
+                  });
+
+                  detectionTimes.push({
+                    type: 'sats',
+                    paymentNum: i + 1,
+                    txId: result.id,
+                    sentAt,
+                    detectedAt: null,
+                    latency: null
+                  });
+
+                  console.log(`📤 Sats payment ${i + 1}/${numPayments} sent - TX: ${result.id}`);
+
+                  // Small delay between payments
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (error) {
+                  console.error(`❌ Sats payment ${i + 1} failed:`, error.message);
+                }
+              }
+
+              // Wait for all sats payments to be detected
+              console.log(`\n⏳ Waiting for sats payment detection...\n`);
+              await new Promise(resolve => setTimeout(resolve, 15000));
+
+              // Benchmark TOKEN payments
+              console.log(`\n🪙 Sending ${numPayments} token payments...\n`);
+
+              for (let i = 0; i < numPayments; i++) {
+                const sentAt = Date.now();
+                try {
+                  const rawAmount = BigInt(1 * Math.pow(10, 6)); // 1 token
+                  const result = await testWallet.transferTokens({
+                    tokenIdentifier: tokenId,
+                    tokenAmount: rawAmount,
+                    receiverSparkAddress: pinAddress
+                  });
+
+                  detectionTimes.push({
+                    type: 'tokens',
+                    paymentNum: i + 1,
+                    txId: result,
+                    sentAt,
+                    detectedAt: null,
+                    latency: null
+                  });
+
+                  console.log(`📤 Token payment ${i + 1}/${numPayments} sent - TX: ${result}`);
+
+                  // Small delay between payments
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (error) {
+                  console.error(`❌ Token payment ${i + 1} failed:`, error.message);
+                }
+              }
+
+              // Wait for token detection (polling happens every 5s)
+              console.log(`\n⏳ Waiting for token payment detection (polling every 5s)...\n`);
+              await new Promise(resolve => setTimeout(resolve, 20000));
+
+              // Calculate statistics
+              console.log(`\n${"=".repeat(70)}`);
+              console.log(`📊 BENCHMARK RESULTS`);
+              console.log(`${"=".repeat(70)}\n`);
+
+              const satsPayments = detectionTimes.filter(p => p.type === 'sats' && p.latency !== null);
+              const tokenPayments = detectionTimes.filter(p => p.type === 'tokens' && p.latency !== null);
+
+              if (satsPayments.length > 0) {
+                const satsLatencies = satsPayments.map(p => p.latency);
+                const satsAvg = satsLatencies.reduce((a, b) => a + b, 0) / satsLatencies.length;
+                const satsMin = Math.min(...satsLatencies);
+                const satsMax = Math.max(...satsLatencies);
+
+                console.log(`⚡ SATS PAYMENTS (EventEmitter - Real-time):`);
+                console.log(`   Detected: ${satsPayments.length}/${numPayments}`);
+                console.log(`   Average latency: ${satsAvg.toFixed(0)}ms`);
+                console.log(`   Min latency: ${satsMin}ms`);
+                console.log(`   Max latency: ${satsMax}ms\n`);
+              }
+
+              if (tokenPayments.length > 0) {
+                const tokenLatencies = tokenPayments.map(p => p.latency);
+                const tokenAvg = tokenLatencies.reduce((a, b) => a + b, 0) / tokenLatencies.length;
+                const tokenMin = Math.min(...tokenLatencies);
+                const tokenMax = Math.max(...tokenLatencies);
+
+                console.log(`🪙 TOKEN PAYMENTS (Polling - 5s intervals):`);
+                console.log(`   Detected: ${tokenPayments.length}/${numPayments}`);
+                console.log(`   Average latency: ${tokenAvg.toFixed(0)}ms`);
+                console.log(`   Min latency: ${tokenMin}ms`);
+                console.log(`   Max latency: ${tokenMax}ms\n`);
+              }
+
+              console.log(`${"=".repeat(70)}\n`);
+
+              // Detailed results
+              console.log(`📋 Detailed Results:\n`);
+              for (const payment of detectionTimes) {
+                if (payment.latency) {
+                  console.log(`${payment.type === 'sats' ? '⚡' : '🪙'} ${payment.type.toUpperCase()} #${payment.paymentNum}: ${payment.latency}ms`);
+                } else {
+                  console.log(`❌ ${payment.type.toUpperCase()} #${payment.paymentNum}: NOT DETECTED`);
+                }
+              }
+
+              console.log(`\n✅ Benchmark complete!`);
+
+            } catch (error) {
+              console.error("❌ Benchmark failed:", error.message);
+              process.exit(1);
+            }
+          }
+
+          benchmarkPayments();
+          EOFSCRIPT
+
+          node benchmark-payments.js
