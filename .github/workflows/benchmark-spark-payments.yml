@@ -1,6 +1,10 @@
 name: Benchmark Spark Payment Speed
 
 on:
+  push:
+    branches:
+      - main
+      - spark-support
   workflow_dispatch:
     inputs:
       num_payments:
