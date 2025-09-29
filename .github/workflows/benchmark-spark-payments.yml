@@ -164,12 +164,16 @@ jobs:
                     const paymentAmount = currentTokenBalance - previousTokenBalance;
                     console.log(`✅ Token Payment detected! Amount: ${paymentAmount} tokens, New balance: ${currentTokenBalance}`);
 
-                    // Find matching sent payment
-                    const match = detectionTimes.find(p => !p.detectedAt && p.type === 'tokens');
-                    if (match) {
-                      match.detectedAt = detectionTime;
-                      match.latency = detectionTime - match.sentAt;
-                      console.log(`   ⏱️  Token Detection latency: ${match.latency}ms\n`);
+                    // Find all undetected token payments and mark them as detected
+                    // This handles cases where multiple payments arrive between polls
+                    const undetectedPayments = detectionTimes.filter(p => !p.detectedAt && p.type === 'tokens');
+                    const paymentsToMark = Math.min(paymentAmount, undetectedPayments.length);
+
+                    for (let i = 0; i < paymentsToMark; i++) {
+                      const payment = undetectedPayments[i];
+                      payment.detectedAt = detectionTime;
+                      payment.latency = detectionTime - payment.sentAt;
+                      console.log(`   ⏱️  Token Detection latency for payment #${payment.paymentNum}: ${payment.latency}ms`);
                     }
 
                     previousTokenBalance = currentTokenBalance;
