@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Benchmark: EXPERIMENTAL APPROACH
- * - Sats: Events (transfer:claimed) + Polling backup
- * - Tokens: Events (balance:updated) + Polling backup
- * This is the experimental approach from the GitHub workflow
+ * Benchmark: EXPERIMENTAL APPROACH (PURE EVENTS)
+ * - Sats: Events ONLY (transfer:claimed) - NO polling backup
+ * - Tokens: Events ONLY (balance:updated) - NO polling backup
+ * This tests pure event-driven detection without any polling safety net
  */
 
 async function benchmarkExperimental() {
@@ -17,10 +17,10 @@ async function benchmarkExperimental() {
     const pinMnemonic = process.env.SPARK_PIN_516_MNEMONIC;
     const tokenId = process.env.SPARK_BEPSITOKEN_IDENTIFIER;
 
-    console.log(`🧪 EXPERIMENTAL APPROACH BENCHMARK`);
+    console.log(`🧪 EXPERIMENTAL APPROACH BENCHMARK (PURE EVENTS)`);
     console.log(`📊 Testing ${numPayments} sats payments + ${numPayments} token payments`);
-    console.log(`⚡ Sats: Events + Polling backup - EXPERIMENTAL`);
-    console.log(`🪙 Tokens: Events + Polling backup - EXPERIMENTAL\n`);
+    console.log(`⚡ Sats: Events ONLY (no polling) - EXPERIMENTAL`);
+    console.log(`🪙 Tokens: Events ONLY (no polling) - EXPERIMENTAL\n`);
 
     // Initialize wallets
     const { wallet: testWallet } = await IssuerSparkWallet.initialize({
@@ -100,64 +100,7 @@ async function benchmarkExperimental() {
       }
     });
 
-    // EXPERIMENTAL: Polling backup for both sats and tokens
-    const checkPaymentsPolling = async () => {
-      try {
-        const balance = await pinWallet.getBalance();
-        const currentSatsBalance = Number(balance.balance);
-
-        // Check for sats payments via polling (backup)
-        if (currentSatsBalance > previousSatsBalance) {
-          const detectionTime = Date.now();
-          const paymentAmount = currentSatsBalance - previousSatsBalance;
-          console.log(`⚠️ Sats Payment detected via POLLING BACKUP (EXPERIMENTAL)! Amount: ${paymentAmount} sats`);
-
-          const undetectedPayments = detectionTimes.filter(p => !p.detectedAt && p.type === 'sats');
-          const satsPerPayment = 1000;
-          const paymentsToMark = Math.min(Math.floor(paymentAmount / satsPerPayment), undetectedPayments.length);
-
-          for (let i = 0; i < paymentsToMark; i++) {
-            const payment = undetectedPayments[i];
-            payment.detectedAt = detectionTime;
-            payment.latency = detectionTime - payment.sentAt;
-            payment.detectionMethod = 'polling-experimental';
-            console.log(`   ⏱️  Sats EXPERIMENTAL Polling Backup latency for payment #${payment.paymentNum}: ${payment.latency}ms`);
-          }
-
-          previousSatsBalance = currentSatsBalance;
-        }
-
-        // Check for token payments via polling (backup)
-        let currentTokenBalance = 0;
-        if (balance.tokenBalances && balance.tokenBalances.has(tokenId)) {
-          const tokenData = balance.tokenBalances.get(tokenId);
-          if (tokenData && tokenData.balance) {
-            currentTokenBalance = Number(tokenData.balance) / Math.pow(10, 6);
-          }
-        }
-
-        if (currentTokenBalance > previousTokenBalance) {
-          const detectionTime = Date.now();
-          const paymentAmount = currentTokenBalance - previousTokenBalance;
-          console.log(`✅ Token Payment detected via POLLING BACKUP (EXPERIMENTAL)! Amount: ${paymentAmount} tokens`);
-
-          const undetectedPayments = detectionTimes.filter(p => !p.detectedAt && p.type === 'tokens');
-          const paymentsToMark = Math.min(paymentAmount, undetectedPayments.length);
-
-          for (let i = 0; i < paymentsToMark; i++) {
-            const payment = undetectedPayments[i];
-            payment.detectedAt = detectionTime;
-            payment.latency = detectionTime - payment.sentAt;
-            payment.detectionMethod = 'polling-experimental';
-            console.log(`   ⏱️  Token EXPERIMENTAL Polling Backup latency for payment #${payment.paymentNum}: ${payment.latency}ms`);
-          }
-
-          previousTokenBalance = currentTokenBalance;
-        }
-      } catch (error) {
-        console.error(`Experimental polling error: ${error.message}`);
-      }
-    };
+    // NO POLLING BACKUP - Pure events only!
 
     // Initialize baselines
     const initialBalance = await pinWallet.getBalance();
@@ -173,9 +116,7 @@ async function benchmarkExperimental() {
     console.log(`📊 Initial pin wallet sats balance: ${previousSatsBalance} sats`);
     console.log(`📊 Initial pin wallet token balance: ${previousTokenBalance} tokens\n`);
 
-    // Start polling every 5 seconds (backup)
-    const pollingInterval = setInterval(checkPaymentsPolling, 5000);
-
+    // NO POLLING - Pure events only
     await new Promise(resolve => setTimeout(resolve, 2000));
     initialBalanceScanComplete = true;
 
@@ -239,65 +180,48 @@ async function benchmarkExperimental() {
       }
     }
 
-    // Wait for token detection
-    console.log(`\n⏳ Waiting for token payment detection (20 seconds)...\n`);
+    // Wait for token detection (events only, no polling)
+    console.log(`\n⏳ Waiting for token payment detection via events (20 seconds)...\n`);
     await new Promise(resolve => setTimeout(resolve, 20000));
-
-    // Stop polling
-    clearInterval(pollingInterval);
 
     // Calculate and display results
     console.log(`\n${"=".repeat(70)}`);
-    console.log(`📊 EXPERIMENTAL BENCHMARK RESULTS`);
+    console.log(`📊 EXPERIMENTAL BENCHMARK RESULTS (PURE EVENTS)`);
     console.log(`${"=".repeat(70)}\n`);
 
     const satsPayments = detectionTimes.filter(p => p.type === 'sats' && p.latency !== null);
     const tokenPayments = detectionTimes.filter(p => p.type === 'tokens' && p.latency !== null);
 
-    // Separate by detection method
-    const satsEventPayments = satsPayments.filter(p => p.detectionMethod === 'events-experimental');
-    const satsPollingPayments = satsPayments.filter(p => p.detectionMethod === 'polling-experimental');
-    const tokenEventPayments = tokenPayments.filter(p => p.detectionMethod === 'events-experimental');
-    const tokenPollingPayments = tokenPayments.filter(p => p.detectionMethod === 'polling-experimental');
-
     if (satsPayments.length > 0) {
-      console.log(`⚡ SATS PAYMENTS (Experimental):`);
-      console.log(`   Total Detected: ${satsPayments.length}/${numPayments}`);
-      console.log(`   📡 Event Detection: ${satsEventPayments.length} payments`);
-      console.log(`   📊 Polling Backup: ${satsPollingPayments.length} payments`);
+      const satsLatencies = satsPayments.map(p => p.latency);
+      const satsAvg = satsLatencies.reduce((a, b) => a + b, 0) / satsLatencies.length;
+      const satsMin = Math.min(...satsLatencies);
+      const satsMax = Math.max(...satsLatencies);
 
-      if (satsEventPayments.length > 0) {
-        const eventLatencies = satsEventPayments.map(p => p.latency);
-        const eventAvg = eventLatencies.reduce((a, b) => a + b, 0) / eventLatencies.length;
-        console.log(`   📡 Event Avg Latency: ${eventAvg.toFixed(0)}ms`);
-      }
-
-      if (satsPollingPayments.length > 0) {
-        const pollingLatencies = satsPollingPayments.map(p => p.latency);
-        const pollingAvg = pollingLatencies.reduce((a, b) => a + b, 0) / pollingLatencies.length;
-        console.log(`   📊 Polling Avg Latency: ${pollingAvg.toFixed(0)}ms`);
-      }
-      console.log();
+      console.log(`⚡ SATS PAYMENTS (Events Only):`);
+      console.log(`   Detected: ${satsPayments.length}/${numPayments}`);
+      console.log(`   Average latency: ${satsAvg.toFixed(0)}ms`);
+      console.log(`   Min: ${satsMin}ms, Max: ${satsMax}ms\n`);
+    } else {
+      console.log(`⚡ SATS PAYMENTS (Events Only):`);
+      console.log(`   Detected: 0/${numPayments}`);
+      console.log(`   ❌ No payments detected via events\n`);
     }
 
     if (tokenPayments.length > 0) {
-      console.log(`🪙 TOKEN PAYMENTS (Experimental):`);
-      console.log(`   Total Detected: ${tokenPayments.length}/${numPayments}`);
-      console.log(`   📡 Event Detection: ${tokenEventPayments.length} payments`);
-      console.log(`   📊 Polling Backup: ${tokenPollingPayments.length} payments`);
+      const tokenLatencies = tokenPayments.map(p => p.latency);
+      const tokenAvg = tokenLatencies.reduce((a, b) => a + b, 0) / tokenLatencies.length;
+      const tokenMin = Math.min(...tokenLatencies);
+      const tokenMax = Math.max(...tokenLatencies);
 
-      if (tokenEventPayments.length > 0) {
-        const eventLatencies = tokenEventPayments.map(p => p.latency);
-        const eventAvg = eventLatencies.reduce((a, b) => a + b, 0) / eventLatencies.length;
-        console.log(`   📡 Event Avg Latency: ${eventAvg.toFixed(0)}ms`);
-      }
-
-      if (tokenPollingPayments.length > 0) {
-        const pollingLatencies = tokenPollingPayments.map(p => p.latency);
-        const pollingAvg = pollingLatencies.reduce((a, b) => a + b, 0) / pollingLatencies.length;
-        console.log(`   📊 Polling Avg Latency: ${pollingAvg.toFixed(0)}ms`);
-      }
-      console.log();
+      console.log(`🪙 TOKEN PAYMENTS (Events Only):`);
+      console.log(`   Detected: ${tokenPayments.length}/${numPayments}`);
+      console.log(`   Average latency: ${tokenAvg.toFixed(0)}ms`);
+      console.log(`   Min: ${tokenMin}ms, Max: ${tokenMax}ms\n`);
+    } else {
+      console.log(`🪙 TOKEN PAYMENTS (Events Only):`);
+      console.log(`   Detected: 0/${numPayments}`);
+      console.log(`   ❌ No payments detected via events\n`);
     }
 
     console.log(`${"=".repeat(70)}\n`);
@@ -306,15 +230,14 @@ async function benchmarkExperimental() {
     console.log(`📋 Detailed Results:\n`);
     for (const payment of detectionTimes) {
       if (payment.latency) {
-        const method = payment.detectionMethod === 'events-experimental' ? '📡 EVENTS' : '📊 POLLING';
         const icon = payment.type === 'sats' ? '⚡' : '🪙';
-        console.log(`${icon} ${payment.type.toUpperCase()} #${payment.paymentNum}: ${payment.latency}ms (${method} - EXPERIMENTAL)`);
+        console.log(`${icon} ${payment.type.toUpperCase()} #${payment.paymentNum}: ${payment.latency}ms (📡 EVENTS ONLY)`);
       } else {
         console.log(`❌ ${payment.type.toUpperCase()} #${payment.paymentNum}: NOT DETECTED`);
       }
     }
 
-    console.log(`\n✅ Experimental benchmark complete!`);
+    console.log(`\n✅ Experimental pure events benchmark complete!`);
 
   } catch (error) {
     console.error("❌ Benchmark failed:", error.message);
