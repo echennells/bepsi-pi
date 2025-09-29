@@ -126,20 +126,71 @@ jobs:
               const detectionTimes = [];
               let detectedCount = 0;
 
+              // Track token balances for polling detection
+              let previousTokenBalance = 0;
+              let tokenDetectionInterval;
+
               // Setup event listener for sats payments
               pinWallet.on('transfer:claimed', async (transferId) => {
                 const detectionTime = Date.now();
                 detectedCount++;
-                console.log(`✅ Payment ${detectedCount} detected! Transfer ID: ${transferId}`);
+                console.log(`✅ Sats Payment ${detectedCount} detected! Transfer ID: ${transferId}`);
 
                 // Find matching sent payment
                 const match = detectionTimes.find(p => !p.detectedAt && p.type === 'sats');
                 if (match) {
                   match.detectedAt = detectionTime;
                   match.latency = detectionTime - match.sentAt;
-                  console.log(`   ⏱️  Detection latency: ${match.latency}ms\n`);
+                  console.log(`   ⏱️  Sats Detection latency: ${match.latency}ms\n`);
                 }
               });
+
+              // Setup token payment detection via polling (like the real vending machine)
+              const checkTokenPayments = async () => {
+                try {
+                  const balance = await pinWallet.getBalance();
+                  let currentTokenBalance = 0;
+
+                  if (balance.tokenBalances && balance.tokenBalances.has(tokenId)) {
+                    const tokenData = balance.tokenBalances.get(tokenId);
+                    if (tokenData && tokenData.balance) {
+                      currentTokenBalance = Number(tokenData.balance) / Math.pow(10, 6);
+                    }
+                  }
+
+                  // Check if token balance increased (new payment detected)
+                  if (currentTokenBalance > previousTokenBalance) {
+                    const detectionTime = Date.now();
+                    const paymentAmount = currentTokenBalance - previousTokenBalance;
+                    console.log(`✅ Token Payment detected! Amount: ${paymentAmount} tokens, New balance: ${currentTokenBalance}`);
+
+                    // Find matching sent payment
+                    const match = detectionTimes.find(p => !p.detectedAt && p.type === 'tokens');
+                    if (match) {
+                      match.detectedAt = detectionTime;
+                      match.latency = detectionTime - match.sentAt;
+                      console.log(`   ⏱️  Token Detection latency: ${match.latency}ms\n`);
+                    }
+
+                    previousTokenBalance = currentTokenBalance;
+                  }
+                } catch (error) {
+                  console.error(`Token detection error: ${error.message}`);
+                }
+              };
+
+              // Initialize token balance baseline and start polling
+              const initialBalance = await pinWallet.getBalance();
+              if (initialBalance.tokenBalances && initialBalance.tokenBalances.has(tokenId)) {
+                const tokenData = initialBalance.tokenBalances.get(tokenId);
+                if (tokenData && tokenData.balance) {
+                  previousTokenBalance = Number(tokenData.balance) / Math.pow(10, 6);
+                }
+              }
+              console.log(`📊 Initial pin wallet token balance: ${previousTokenBalance} tokens`);
+
+              // Start token polling every 5 seconds (like real vending machine)
+              tokenDetectionInterval = setInterval(checkTokenPayments, 5000);
 
               await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -235,6 +286,12 @@ jobs:
               // Wait for token detection (polling happens every 5s)
               console.log(`\n⏳ Waiting for token payment detection (30 seconds, polling every 5s)...\n`);
               await new Promise(resolve => setTimeout(resolve, 30000));
+
+              // Stop token polling
+              if (tokenDetectionInterval) {
+                clearInterval(tokenDetectionInterval);
+                console.log(`🛑 Stopped token detection polling`);
+              }
 
               // Calculate statistics
               console.log(`\n${"=".repeat(70)}`);
