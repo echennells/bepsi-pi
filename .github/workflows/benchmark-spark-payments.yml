@@ -130,20 +130,55 @@ jobs:
               let previousTokenBalance = 0;
               let tokenDetectionInterval;
 
-              // Setup event listener for sats payments
+              // EXPERIMENT: Test polling for sats too (comment/uncomment to switch methods)
+
+              // METHOD 1: Event-driven sats detection (ORIGINAL - COMMENTED OUT)
+              /*
               pinWallet.on('transfer:claimed', async (transferId) => {
                 const detectionTime = Date.now();
                 detectedCount++;
-                console.log(`✅ Sats Payment ${detectedCount} detected! Transfer ID: ${transferId}`);
+                console.log(`✅ Sats Payment ${detectedCount} detected via EVENT! Transfer ID: ${transferId}`);
 
                 // Find matching sent payment
                 const match = detectionTimes.find(p => !p.detectedAt && p.type === 'sats');
                 if (match) {
                   match.detectedAt = detectionTime;
                   match.latency = detectionTime - match.sentAt;
-                  console.log(`   ⏱️  Sats Detection latency: ${match.latency}ms\n`);
+                  console.log(`   ⏱️  Sats EVENT Detection latency: ${match.latency}ms\n`);
                 }
               });
+              */
+
+              // METHOD 2: Polling-based sats detection (NEW - ACTIVE)
+              let previousSatsBalance = 0;
+              const checkSatsPayments = async () => {
+                try {
+                  const balance = await pinWallet.getBalance();
+                  const currentSatsBalance = Number(balance.balance);
+
+                  if (currentSatsBalance > previousSatsBalance) {
+                    const detectionTime = Date.now();
+                    const paymentAmount = currentSatsBalance - previousSatsBalance;
+                    console.log(`✅ Sats Payment detected via POLLING! Amount: ${paymentAmount} sats, New balance: ${currentSatsBalance}`);
+
+                    // Find all undetected sats payments and mark them as detected
+                    const undetectedPayments = detectionTimes.filter(p => !p.detectedAt && p.type === 'sats');
+                    const satsPerPayment = 1000; // We know each payment is 1000 sats
+                    const paymentsToMark = Math.min(Math.floor(paymentAmount / satsPerPayment), undetectedPayments.length);
+
+                    for (let i = 0; i < paymentsToMark; i++) {
+                      const payment = undetectedPayments[i];
+                      payment.detectedAt = detectionTime;
+                      payment.latency = detectionTime - payment.sentAt;
+                      console.log(`   ⏱️  Sats POLLING Detection latency for payment #${payment.paymentNum}: ${payment.latency}ms`);
+                    }
+
+                    previousSatsBalance = currentSatsBalance;
+                  }
+                } catch (error) {
+                  console.error(`Sats polling detection error: ${error.message}`);
+                }
+              };
 
               // Test: Try event-driven token detection (like sats) instead of polling
               pinWallet.on('balance:updated', async (balanceInfo) => {
@@ -220,8 +255,14 @@ jobs:
                 }
               };
 
-              // Initialize token balance baseline and start polling
+              // Initialize baselines for both sats and tokens
               const initialBalance = await pinWallet.getBalance();
+
+              // Initialize sats baseline
+              previousSatsBalance = Number(initialBalance.balance);
+              console.log(`📊 Initial pin wallet sats balance: ${previousSatsBalance} sats`);
+
+              // Initialize token baseline
               if (initialBalance.tokenBalances && initialBalance.tokenBalances.has(tokenId)) {
                 const tokenData = initialBalance.tokenBalances.get(tokenId);
                 if (tokenData && tokenData.balance) {
@@ -230,8 +271,12 @@ jobs:
               }
               console.log(`📊 Initial pin wallet token balance: ${previousTokenBalance} tokens`);
 
-              // Start token polling every 5 seconds (like real vending machine)
-              tokenDetectionInterval = setInterval(checkTokenPayments, 5000);
+              // Start polling every 5 seconds for BOTH sats and tokens
+              const pollingInterval = setInterval(() => {
+                checkSatsPayments();
+                checkTokenPayments();
+              }, 5000);
+              tokenDetectionInterval = pollingInterval; // Use same variable name for cleanup
 
               await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -348,7 +393,7 @@ jobs:
                 const satsMin = Math.min(...satsLatencies);
                 const satsMax = Math.max(...satsLatencies);
 
-                console.log(`⚡ SATS PAYMENTS (EventEmitter - Real-time):`);
+                console.log(`⚡ SATS PAYMENTS (Polling - 5s intervals):`);
                 console.log(`   Detected: ${satsPayments.length}/${numPayments}`);
                 console.log(`   Average latency: ${satsAvg.toFixed(0)}ms`);
                 console.log(`   Min latency: ${satsMin}ms`);
