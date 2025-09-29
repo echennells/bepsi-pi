@@ -186,8 +186,8 @@ jobs:
                 options: { network: "MAINNET" }
               });
 
-              // Wait for state to sync
-              await new Promise(resolve => setTimeout(resolve, 5000));
+              // Wait longer for state to sync in GitHub Actions environment
+              await new Promise(resolve => setTimeout(resolve, 15000));
 
               // Refresh balance to get current token state
               const currentBalance = await refreshedTestWallet.getBalance();
