@@ -1,16 +1,16 @@
 name: Benchmark Spark Payment Speed
 
 on:
-  push:
-    branches:
-      - main
-      - spark-support
   workflow_dispatch:
     inputs:
       num_payments:
         description: 'Number of payments to send (sats and tokens each)'
         required: false
         default: '10'
+  push:
+    branches:
+      - main
+      - spark-support
 
 jobs:
   benchmark:
