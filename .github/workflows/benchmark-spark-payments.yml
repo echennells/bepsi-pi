@@ -179,8 +179,18 @@ jobs:
               // Benchmark TOKEN payments
               console.log(`\n🪙 Sending ${numPayments} token payments...\n`);
 
+              // Reinitialize wallet to refresh state after sats payments
+              console.log('🔄 Reinitializing test wallet to refresh state...');
+              const { wallet: refreshedTestWallet } = await IssuerSparkWallet.initialize({
+                mnemonicOrSeed: testWalletMnemonic,
+                options: { network: \"MAINNET\" }
+              });
+
+              // Wait for state to sync
+              await new Promise(resolve => setTimeout(resolve, 5000));
+
               // Refresh balance to get current token state
-              const currentBalance = await testWallet.getBalance();
+              const currentBalance = await refreshedTestWallet.getBalance();
               console.log(`   Current balance: ${currentBalance.balance} sats`);
               console.log(`   Token balances map size: ${currentBalance.tokenBalances ? currentBalance.tokenBalances.size : 'null'}`);
 
@@ -198,7 +208,7 @@ jobs:
                 const sentAt = Date.now();
                 try {
                   const rawAmount = BigInt(1 * Math.pow(10, 6)); // 1 token
-                  const result = await testWallet.transferTokens({
+                  const result = await refreshedTestWallet.transferTokens({
                     tokenIdentifier: tokenId,
                     tokenAmount: rawAmount,
                     receiverSparkAddress: pinAddress
