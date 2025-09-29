@@ -181,11 +181,17 @@ jobs:
 
               // Refresh balance to get current token state
               const currentBalance = await testWallet.getBalance();
+              console.log(`   Current balance: ${currentBalance.balance} sats`);
+              console.log(`   Token balances map size: ${currentBalance.tokenBalances ? currentBalance.tokenBalances.size : 'null'}`);
+
               if (currentBalance.tokenBalances && currentBalance.tokenBalances.size > 0) {
+                console.log(`   Found ${currentBalance.tokenBalances.size} token types:`);
                 for (const [tId, tData] of currentBalance.tokenBalances) {
                   const tAmount = Number(tData.balance) / Math.pow(10, 6);
-                  console.log(`   Available tokens: ${tAmount} (${tId.slice(0,20)}...)`);
+                  console.log(`     Token: ${tAmount} (${tId.slice(0,20)}...)`);
                 }
+              } else {
+                console.log(`   ⚠️ No tokens found in wallet after sats payments!`);
               }
 
               for (let i = 0; i < numPayments; i++) {
