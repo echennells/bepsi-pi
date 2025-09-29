@@ -173,8 +173,8 @@ jobs:
               }
 
               // Wait for all sats payments to be detected
-              console.log(`\n⏳ Waiting for sats payment detection...\n`);
-              await new Promise(resolve => setTimeout(resolve, 15000));
+              console.log(`\n⏳ Waiting for sats payment detection (30 seconds)...\n`);
+              await new Promise(resolve => setTimeout(resolve, 30000));
 
               // Benchmark TOKEN payments
               console.log(`\n🪙 Sending ${numPayments} token payments...\n`);
@@ -208,8 +208,8 @@ jobs:
               }
 
               // Wait for token detection (polling happens every 5s)
-              console.log(`\n⏳ Waiting for token payment detection (polling every 5s)...\n`);
-              await new Promise(resolve => setTimeout(resolve, 20000));
+              console.log(`\n⏳ Waiting for token payment detection (30 seconds, polling every 5s)...\n`);
+              await new Promise(resolve => setTimeout(resolve, 30000));
 
               // Calculate statistics
               console.log(`\n${"=".repeat(70)}`);
