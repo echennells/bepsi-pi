@@ -30,6 +30,61 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Sweep funds to test wallet before benchmark
+        env:
+          TEST_WALLET_ADDRESS: 'sp1pgss8zk663885kz8ftfexlayqgyfzpj3kjued5vwkz8y9z7646779qy3rk5rpd'
+          SPARK_PIN_516_MNEMONIC: ${{ secrets.SPARK_PIN_516_MNEMONIC }}
+          SPARK_PIN_517_MNEMONIC: ${{ secrets.SPARK_PIN_517_MNEMONIC }}
+          SPARK_PIN_518_MNEMONIC: ${{ secrets.SPARK_PIN_518_MNEMONIC }}
+          SPARK_PIN_524_MNEMONIC: ${{ secrets.SPARK_PIN_524_MNEMONIC }}
+          SPARK_PIN_525_MNEMONIC: ${{ secrets.SPARK_PIN_525_MNEMONIC }}
+          SPARK_PIN_528_MNEMONIC: ${{ secrets.SPARK_PIN_528_MNEMONIC }}
+        run: |
+          node -e "
+          const { IssuerSparkWallet } = require('@buildonspark/issuer-sdk');
+          (async () => {
+            console.log('🧹 Sweeping any stuck funds back to test wallet...');
+            const testWalletAddress = process.env.TEST_WALLET_ADDRESS;
+            const pins = [516, 517, 518, 524, 525, 528];
+            let totalSwept = 0;
+
+            for (const pin of pins) {
+              const mnemonic = process.env[\`SPARK_PIN_\${pin}_MNEMONIC\`];
+              if (!mnemonic) continue;
+
+              try {
+                const { wallet } = await IssuerSparkWallet.initialize({
+                  mnemonicOrSeed: mnemonic,
+                  options: { network: 'MAINNET' }
+                });
+
+                const balance = await wallet.getBalance();
+                const sats = Number(balance.balance);
+
+                if (sats > 0) {
+                  await wallet.transfer({
+                    receiverSparkAddress: testWalletAddress,
+                    amountSats: sats
+                  });
+                  console.log(\`  ✅ Swept \${sats} sats from pin \${pin}\`);
+                  totalSwept += sats;
+                }
+              } catch (error) {
+                console.log(\`  ⚠️ Pin \${pin}: \${error.message}\`);
+              }
+            }
+
+            if (totalSwept > 0) {
+              console.log(\`💰 Total swept: \${totalSwept} sats\`);
+              console.log('⏳ Waiting 20 seconds for funds to settle...');
+              await new Promise(resolve => setTimeout(resolve, 20000));
+              console.log('✓ Ready to proceed with benchmark');
+            } else {
+              console.log('✓ No funds to sweep');
+            }
+          })();
+          "
+
       - name: Run payment speed benchmark
         env:
           NUM_PAYMENTS: ${{ github.event.inputs.num_payments || '10' }}
