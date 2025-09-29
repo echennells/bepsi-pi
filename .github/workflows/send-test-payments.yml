@@ -66,7 +66,7 @@ jobs:
           SPARK_PIN_528_ADDRESS: ${{ secrets.SPARK_PIN_528_ADDRESS }}
           SPARK_PIN_528_AMOUNT: '2000'
           SPARK_BEPSITOKEN_PIN_528_AMOUNT: '2'
-          SPARK_BEPSITOKEN_IDENTIFIER: ${{ secrets.SPARK_BEPSITOKEN_IDENTIFIER }}
+          SPARK_BEPSITOKEN_IDENTIFIER: 'btkn1xecvlqngfwwvw2z38s67rn23r76m2vpkmwavfr9cr6ytzgqufu0ql0a4qk'
         run: |
           cat > send-payment.js << 'EOFSCRIPT'
           #!/usr/bin/env node
