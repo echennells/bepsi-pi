@@ -17,6 +17,7 @@ on:
         - production-hybrid
         - experimental
         - original
+        - sats-race
   push:
     branches:
       - main
@@ -131,6 +132,17 @@ jobs:
         run: |
           echo "🧪 Running experimental benchmark..."
           node benchmark-experimental.js
+
+      - name: Run sats race benchmark (Events vs Polling)
+        if: ${{ github.event.inputs.benchmark_type == 'sats-race' }}
+        env:
+          NUM_PAYMENTS: ${{ github.event.inputs.num_payments || '5' }}
+          TEST_WALLET_MNEMONIC: ${{ secrets.TEST_WALLET_MNEMONIC }}
+          SPARK_PIN_516_ADDRESS: ${{ secrets.SPARK_PIN_516_ADDRESS }}
+          SPARK_PIN_516_MNEMONIC: ${{ secrets.SPARK_PIN_516_MNEMONIC }}
+        run: |
+          echo "🏁 Running sats race benchmark (Events vs Polling)..."
+          node benchmark-sats-race.js
 
       - name: Run original benchmark (for reference)
         if: ${{ github.event.inputs.benchmark_type == 'original' }}
