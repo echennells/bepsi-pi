@@ -179,6 +179,15 @@ jobs:
               // Benchmark TOKEN payments
               console.log(`\n🪙 Sending ${numPayments} token payments...\n`);
 
+              // Refresh balance to get current token state
+              const currentBalance = await testWallet.getBalance();
+              if (currentBalance.tokenBalances && currentBalance.tokenBalances.size > 0) {
+                for (const [tId, tData] of currentBalance.tokenBalances) {
+                  const tAmount = Number(tData.balance) / Math.pow(10, 6);
+                  console.log(`   Available tokens: ${tAmount} (${tId.slice(0,20)}...)`);
+                }
+              }
+
               for (let i = 0; i < numPayments; i++) {
                 const sentAt = Date.now();
                 try {
