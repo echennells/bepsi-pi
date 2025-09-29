@@ -1,0 +1,116 @@
+name: Check All Wallet Balances
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-balances:
+    runs-on: ubuntu-latest
+    environment: asdfasdf
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check all wallet balances
+        env:
+          TEST_WALLET_MNEMONIC: ${{ secrets.TEST_WALLET_MNEMONIC }}
+          SPARK_PIN_516_MNEMONIC: ${{ secrets.SPARK_PIN_516_MNEMONIC }}
+          SPARK_PIN_517_MNEMONIC: ${{ secrets.SPARK_PIN_517_MNEMONIC }}
+          SPARK_PIN_518_MNEMONIC: ${{ secrets.SPARK_PIN_518_MNEMONIC }}
+          SPARK_PIN_524_MNEMONIC: ${{ secrets.SPARK_PIN_524_MNEMONIC }}
+          SPARK_PIN_525_MNEMONIC: ${{ secrets.SPARK_PIN_525_MNEMONIC }}
+          SPARK_PIN_528_MNEMONIC: ${{ secrets.SPARK_PIN_528_MNEMONIC }}
+        run: |
+          cat > check-balances.js << 'EOFSCRIPT'
+          #!/usr/bin/env node
+
+          async function checkAllWallets() {
+            try {
+              const { IssuerSparkWallet } = await import("@buildonspark/issuer-sdk");
+
+              console.log("🔍 Checking all GitHub secret wallet balances...\n");
+
+              const wallets = [
+                { name: "Test Wallet", mnemonic: process.env.TEST_WALLET_MNEMONIC },
+                { name: "Pin 516", mnemonic: process.env.SPARK_PIN_516_MNEMONIC },
+                { name: "Pin 517", mnemonic: process.env.SPARK_PIN_517_MNEMONIC },
+                { name: "Pin 518", mnemonic: process.env.SPARK_PIN_518_MNEMONIC },
+                { name: "Pin 524", mnemonic: process.env.SPARK_PIN_524_MNEMONIC },
+                { name: "Pin 525", mnemonic: process.env.SPARK_PIN_525_MNEMONIC },
+                { name: "Pin 528", mnemonic: process.env.SPARK_PIN_528_MNEMONIC }
+              ];
+
+              let totalSats = 0;
+              let totalTokens = {};
+
+              for (const walletInfo of wallets) {
+                if (!walletInfo.mnemonic) {
+                  console.log(`❌ ${walletInfo.name}: No mnemonic found`);
+                  continue;
+                }
+
+                console.log(`💳 ${walletInfo.name}:`);
+                try {
+                  const { wallet } = await IssuerSparkWallet.initialize({
+                    mnemonicOrSeed: walletInfo.mnemonic,
+                    options: { network: "MAINNET" }
+                  });
+
+                  const address = await wallet.getSparkAddress();
+                  const balance = await wallet.getBalance();
+                  const sats = Number(balance.balance);
+
+                  console.log(`   Address: ${address}`);
+                  console.log(`   Balance: ${sats} sats`);
+
+                  if (balance.tokenBalances && balance.tokenBalances.size > 0) {
+                    console.log(`   Tokens found: ${balance.tokenBalances.size} types`);
+                    for (const [tokenId, tokenData] of balance.tokenBalances) {
+                      const tokenAmount = Number(tokenData.balance) / Math.pow(10, 6);
+                      console.log(`     ${tokenId.slice(0,20)}...: ${tokenAmount} tokens`);
+                      totalTokens[tokenId] = (totalTokens[tokenId] || 0) + tokenAmount;
+                    }
+                  } else {
+                    console.log(`   Tokens: 0`);
+                  }
+
+                  totalSats += sats;
+
+                } catch (error) {
+                  console.log(`   ❌ Error: ${error.message}`);
+                }
+                console.log("");
+              }
+
+              console.log("=".repeat(70));
+              console.log("📊 TOTAL ACROSS ALL SECRET WALLETS");
+              console.log("=".repeat(70));
+              console.log(`Total Sats: ${totalSats}`);
+              if (Object.keys(totalTokens).length > 0) {
+                console.log(`Total Tokens:`);
+                for (const [tokenId, amount] of Object.entries(totalTokens)) {
+                  console.log(`  ${tokenId.slice(0,20)}...: ${amount}`);
+                }
+              } else {
+                console.log(`Total Tokens: 0`);
+              }
+
+            } catch (error) {
+              console.error("❌ Check failed:", error.message);
+              process.exit(1);
+            }
+          }
+
+          checkAllWallets();
+          EOFSCRIPT
+
+          node check-balances.js
