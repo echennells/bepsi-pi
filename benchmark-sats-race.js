@@ -11,11 +11,38 @@ async function benchmarkSatsRace() {
 
     const numPayments = parseInt(process.env.NUM_PAYMENTS || '5');
     const testWalletMnemonic = process.env.TEST_WALLET_MNEMONIC;
+    const testWalletAddress = process.env.TEST_WALLET_ADDRESS;
     const pinAddress = process.env.SPARK_PIN_516_ADDRESS;
     const pinMnemonic = process.env.SPARK_PIN_516_MNEMONIC;
 
     console.log(`🏁 SATS DETECTION RACE: Events vs Polling`);
     console.log(`📊 Testing ${numPayments} payments\n`);
+
+    // First sweep any funds stuck in pin wallet back to test wallet
+    console.log(`🧹 Sweeping pin wallet before test...`);
+    const { wallet: pinWalletTemp } = await IssuerSparkWallet.initialize({
+      mnemonicOrSeed: pinMnemonic,
+      options: { network: "MAINNET" }
+    });
+
+    const pinBalanceTemp = await pinWalletTemp.getBalance();
+    const pinSatsTemp = Number(pinBalanceTemp.balance);
+
+    if (pinSatsTemp > 0) {
+      try {
+        await pinWalletTemp.transfer({
+          receiverSparkAddress: testWalletAddress,
+          amountSats: pinSatsTemp
+        });
+        console.log(`✅ Swept ${pinSatsTemp} sats from pin wallet back to test wallet`);
+        console.log(`⏳ Waiting 15 seconds for sweep to settle...\n`);
+        await new Promise(resolve => setTimeout(resolve, 15000));
+      } catch (error) {
+        console.log(`⚠️ Could not sweep: ${error.message}\n`);
+      }
+    } else {
+      console.log(`✅ Pin wallet is empty\n`);
+    }
 
     // Initialize wallets
     const { wallet: testWallet } = await IssuerSparkWallet.initialize({
@@ -28,7 +55,17 @@ async function benchmarkSatsRace() {
       options: { network: "MAINNET" }
     });
 
-    console.log(`💰 Test wallet balance: ${await testWallet.getBalance().then(b => b.balance)} sats\n`);
+    // Check and display initial balance
+    const initialTestBalance = await testWallet.getBalance();
+    const testSats = Number(initialTestBalance.balance);
+    console.log(`💰 Test wallet balance: ${testSats} sats`);
+
+    const requiredSats = numPayments * 1000;
+    if (testSats < requiredSats) {
+      console.log(`❌ Insufficient balance! Need ${requiredSats} sats but only have ${testSats}`);
+      process.exit(1);
+    }
+    console.log(`✅ Sufficient balance for ${numPayments} payments\n`);
 
     const payments = [];
     let previousBalance = Number((await pinWallet.getBalance()).balance);
@@ -98,10 +135,13 @@ async function benchmarkSatsRace() {
           pollingLatency: null
         });
 
-        console.log(`📤 Payment ${i + 1}/${numPayments} sent`);
+        console.log(`📤 Payment ${i + 1}/${numPayments} sent - TX: ${result.id}`);
 
-        // Wait between payments
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        // Longer wait between payments to ensure settlement
+        if (i < numPayments - 1) {
+          console.log(`⏳ Waiting 15 seconds before next payment...\n`);
+          await new Promise(resolve => setTimeout(resolve, 15000));
+        }
       } catch (error) {
         console.error(`❌ Payment ${i + 1} failed:`, error.message);
       }

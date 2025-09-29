@@ -136,7 +136,8 @@ jobs:
       - name: Run sats race benchmark (Events vs Polling)
         if: ${{ github.event.inputs.benchmark_type == 'sats-race' }}
         env:
-          NUM_PAYMENTS: ${{ github.event.inputs.num_payments || '5' }}
+          NUM_PAYMENTS: ${{ github.event.inputs.num_payments || '3' }}
+          TEST_WALLET_ADDRESS: 'sp1pgss8zk663885kz8ftfexlayqgyfzpj3kjued5vwkz8y9z7646779qy3rk5rpd'
           TEST_WALLET_MNEMONIC: ${{ secrets.TEST_WALLET_MNEMONIC }}
           SPARK_PIN_516_ADDRESS: ${{ secrets.SPARK_PIN_516_ADDRESS }}
           SPARK_PIN_516_MNEMONIC: ${{ secrets.SPARK_PIN_516_MNEMONIC }}
