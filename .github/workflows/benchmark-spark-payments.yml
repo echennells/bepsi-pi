@@ -183,7 +183,7 @@ jobs:
               console.log('🔄 Reinitializing test wallet to refresh state...');
               const { wallet: refreshedTestWallet } = await IssuerSparkWallet.initialize({
                 mnemonicOrSeed: testWalletMnemonic,
-                options: { network: \"MAINNET\" }
+                options: { network: "MAINNET" }
               });
 
               // Wait for state to sync
