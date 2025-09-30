@@ -1,5 +1,6 @@
 // Dependencies
-const { dispenseFromPayments } = require("../machine");
+const { dispenseFromPayments, logPayment } = require("../machine");
+const { notifyPaymentSuccess } = require("../payment-events");
 
 // Dynamic import for ES modules in CommonJS context
 let IssuerSparkWallet;
@@ -169,7 +170,12 @@ const setupEventEmitterForPin = (pinNo, wallet) => {
         satsProcessedViaEvent.add(transferId);
 
         console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
-        dispenseFromPayments(pinNo, "spark");
+        logPayment(pinNo, "sats", satsIncrease, "spark");
+        dispenseFromPayments(pinNo, "sats");
+
+        // Notify frontend via SSE
+        const drinkName = getPinName(pinNo);
+        notifyPaymentSuccess(pinNo, paymentRequest.address, drinkName, "sats", satsIncrease);
       }
     } catch (error) {
       console.error(`[Spark] Error handling transfer event for pin ${pinNo}:`, error.message);
@@ -236,7 +242,13 @@ const checkForTokenPayments = async () => {
 
             // Dispense the product
             console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
-            dispenseFromPayments(pinNo, "spark");
+            const tokenIncrease = tokenAmount - previousTokenAmount;
+            logPayment(pinNo, "tokens", tokenIncrease, "spark");
+            dispenseFromPayments(pinNo, "tokens");
+
+            // Notify frontend via SSE
+            const drinkName = getPinName(pinNo);
+            notifyPaymentSuccess(pinNo, paymentRequest.address, drinkName, "tokens", tokenAmount - previousTokenAmount);
             break;
           }
 

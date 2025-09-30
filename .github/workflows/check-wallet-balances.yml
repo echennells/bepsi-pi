@@ -1,4 +1,4 @@
-name: Check All Wallet Balances
+name: Check Wallet Balances
 
 on:
   workflow_dispatch:

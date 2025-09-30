@@ -10,7 +10,9 @@ RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    git
+    git \
+    linux-headers \
+    libc-dev
 
 # Copy package files
 COPY package.json yarn.lock ./

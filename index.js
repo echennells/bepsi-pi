@@ -1,3 +1,4 @@
+const express = require('express');
 const { createExitAwareAbortController } = require("./src/common");
 const { startDiscordListener } = require("./src/listeners/discordL");
 const { startEvmListener } = require("./src/listeners/evmL");
@@ -6,9 +7,18 @@ const { startMachineChecker } = require("./src/listeners/machineL");
 const { startLightningListener } = require("./src/listeners/lightningL");
 const { startSparkListener } = require("./src/listeners/sparkL");
 const { isServiceEnabled } = require("./src/env");
+const { setupPaymentEvents } = require("./src/payment-events");
 
 const main = async () => {
   const abortController = createExitAwareAbortController();
+
+  // Start Express server for SSE
+  const app = express();
+  setupPaymentEvents(app);
+
+  const server = app.listen(3500, () => {
+    console.log('[SSE] Payment events server running on port 3500');
+  });
 
   // Start services only if they are properly configured and not disabled
   if (isServiceEnabled('discord')) {
@@ -55,10 +65,10 @@ const main = async () => {
     try {
       startSparkListener();
     } catch (error) {
-      console.error('❌ Spark listener failed to start:', error.message);
+      console.error('❌ [Spark] Listener failed to start:', error.message);
     }
   } else {
-    console.log('[' + new Date().toLocaleTimeString() + '] - Spark listener disabled or misconfigured');
+    console.log('[' + new Date().toLocaleTimeString() + '] - [Spark] Listener disabled or misconfigured');
   }
 
   // startMachineChecker();
