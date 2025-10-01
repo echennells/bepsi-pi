@@ -128,4 +128,5 @@ trigger-benchmark.sh
 run-comparison-benchmarks.js
 generate-test-wallet.js
 manual-sweep-to-test-wallet.js
+sweep-*.js
 docker-test.env
