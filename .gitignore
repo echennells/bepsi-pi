@@ -129,4 +129,5 @@ run-comparison-benchmarks.js
 generate-test-wallet.js
 manual-sweep-to-test-wallet.js
 sweep-*.js
+check-*-wallet*.js
 docker-test.env
