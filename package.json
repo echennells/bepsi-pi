@@ -9,6 +9,7 @@
     "@solana/web3.js": "2.0.0-rc.1",
     "abi-decoder": "^2.4.0",
     "axios": "^1.12.2",
+    "bip39": "^3.1.0",
     "discord.js": "^14.7.1",
     "dotenv": "^16.0.3",
     "ethers": "^5.7.2",

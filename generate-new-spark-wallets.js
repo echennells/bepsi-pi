@@ -20,6 +20,7 @@ const EXISTING_TREASURY = 'sp1pgssx67qzgsqg0zv5vp98q82p22sx66w80udphrrxrh5cpawy9
 async function generateWallets() {
   // Dynamic import for ES module
   const { IssuerSparkWallet } = await import('@buildonspark/issuer-sdk');
+  const bip39 = await import('bip39');
 
   console.log('🔑 Generating new Spark wallets for vending machine pins...\n');
   console.log('=' .repeat(80));
@@ -29,10 +30,18 @@ async function generateWallets() {
 
   // Generate new wallets for each pin
   for (const pin of PINS) {
-    const wallet = new IssuerSparkWallet();
-    await wallet.init();  // Initialize the wallet
-    const mnemonic = wallet.mnemonic;
-    const address = await wallet.getSparkAddress();
+    // Generate new mnemonic
+    const mnemonic = bip39.generateMnemonic();
+
+    // Initialize wallet with mnemonic
+    const { wallet } = await IssuerSparkWallet.initialize({
+      mnemonicOrSeed: mnemonic,
+      options: {
+        network: "MAINNET",
+      },
+    });
+
+    const address = wallet.sparkAddress;
 
     console.log(`# Pin ${pin} (${DRINK_NAMES[pin]})`);
     console.log(`SPARK_PIN_${pin}_ADDRESS=${address}`);
