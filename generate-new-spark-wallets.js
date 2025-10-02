@@ -30,6 +30,7 @@ async function generateWallets() {
   // Generate new wallets for each pin
   for (const pin of PINS) {
     const wallet = new IssuerSparkWallet();
+    await wallet.init();  // Initialize the wallet
     const mnemonic = wallet.mnemonic;
     const address = await wallet.getSparkAddress();
 
