@@ -8,7 +8,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-const NOCODB_URL = 'http://localhost:8080';
+const NOCODB_URL = 'http://localhost:8888';
 const ADMIN_EMAIL = 'admin@vending.machine';
 const ADMIN_PASSWORD = 'VendingMachine123!';
 
@@ -83,23 +83,13 @@ async function main() {
 
     const finalToken = apiToken.data.token;
 
-    console.log('⚙️ Updating backend environment...');
-    const envPath = path.join(__dirname, '../docker-test.env');
-    let envContent = fs.readFileSync(envPath, 'utf8');
-
-    envContent = envContent.replace(
-      /NOCODB_API_TOKEN=.*/,
-      `NOCODB_API_TOKEN=${finalToken}`
-    );
-
-    fs.writeFileSync(envPath, envContent);
-
     console.log('\n🎉 COMPLETE SETUP SUCCESS!');
     console.log(`📍 Project ID: ${projectId}`);
-    console.log(`🔑 API Token: ${finalToken.substring(0, 20)}...`);
-    console.log('🔗 Web interface: http://localhost:8080');
-    console.log('\n🔄 Now restart the backend container:');
-    console.log('   docker restart bepsi-pi-development-test');
+    console.log(`🔑 API Token: ${finalToken}`);
+    console.log('🔗 Web interface: http://localhost:8888');
+    console.log('\n📝 Add these to your .env file:');
+    console.log(`NOCODB_API_TOKEN=${finalToken}`);
+    console.log(`NOCO_CREATE_NEW_PURCHASE_URL=http://nocodb-test:8080/api/v1/db/data/v1/${projectId}/purchases`);
 
   } catch (error) {
     if (error.response?.status === 400 && error.response?.data?.msg?.includes('already exists')) {
