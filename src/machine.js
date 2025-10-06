@@ -64,25 +64,7 @@ const dispenseFromDiscord = async (pinNo) => {
 };
 
 const dispenseFromPayments = async (pinNo, currency) => {
-  await axios
-    .post(
-      NOCO_CREATE_NEW_PURCHASE_URL,
-      {
-        currency,
-        timestamp: new Date().toISOString(),
-        item: getDispenseItemGivenPin(pinNo),
-      },
-      {
-        headers: {
-          accept: "application/json",
-          "xc-token": NOCODB_API_TOKEN,
-          "Content-Type": "application/json",
-        },
-      },
-    )
-    .catch((e) =>
-      console.log(`[dispenseFromDiscord] POST TO NOCODE DB FAILURE ${e}`),
-    );
+  // Only handle physical dispensing - logging is done by logPayment()
   console.log("Dispensing pin " + pinNo);
   dispense(pinNo);
 };
