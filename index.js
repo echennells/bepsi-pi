@@ -4,6 +4,7 @@ const { startDiscordListener } = require("./src/listeners/discordL");
 const { startEvmListener } = require("./src/listeners/evmL");
 const { startSolanaListener } = require("./src/listeners/solanaL");
 const { startMachineChecker } = require("./src/listeners/machineL");
+const { startArkadeListener } = require("./src/listeners/arkadeL");
 const { startLightningListener } = require("./src/listeners/lightningL");
 const { startSparkListener } = require("./src/listeners/sparkL");
 const { isServiceEnabled } = require("./src/env");
@@ -50,6 +51,16 @@ const main = async () => {
     }
   } else {
     console.log('[' + new Date().toLocaleTimeString() + '] - Solana listener disabled or misconfigured');
+  }
+
+  if (isServiceEnabled('arkade')) {
+    try {
+      startArkadeListener();
+    } catch (error) {
+      console.error('❌ Arkade listener failed to start:', error.message);
+    }
+  } else {
+    console.log('[' + new Date().toLocaleTimeString() + '] - Arkade listener disabled or misconfigured');
   }
 
   if (isServiceEnabled('lightning')) {

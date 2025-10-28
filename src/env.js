@@ -16,6 +16,7 @@ const SERVICE_ENV_VARS = {
   discord: ["DISCORD_TOKEN", "DISCORD_CHANNEL_ID"],
   evm: ["PAYMENT_ADDRESS"],
   solana: ["SOLANA_TREASURY_ADDRESS"],
+  arkade: ["ARKADE_WS_URL"],
   lightning: ["LIGHTNING_LNBIT_URL"],
   spark: [], // Spark can work with just individual pin configs, no required globals
   database: ["NOCODB_API_TOKEN"]
@@ -42,6 +43,7 @@ for (const [service, missing] of Object.entries(missingByService)) {
 // Only fatal error if NO payment system is configured
 const hasAnyPaymentSystem = process.env.PAYMENT_ADDRESS ||
                            process.env.SOLANA_TREASURY_ADDRESS ||
+                           process.env.ARKADE_WS_URL ||
                            process.env.LIGHTNING_LNBIT_URL ||
                            process.env.SPARK_PAYMENT_AMOUNT; // Spark can work with pin configs
 
@@ -74,6 +76,7 @@ const {
   DISCORD_CHANNEL_ID,
   NOCODB_API_TOKEN,
   PAYMENT_ADDRESS,
+  ARKADE_WS_URL,
   LIGHTNING_LNBIT_URL,
   SOLANA_TREASURY_ADDRESS,
   SPARK_PAYMENT_AMOUNT,
@@ -89,6 +92,7 @@ module.exports = {
   DISCORD_CHANNEL_ID,
   NOCODB_API_TOKEN,
   PAYMENT_ADDRESS,
+  ARKADE_WS_URL,
   LIGHTNING_LNBIT_URL,
   SOLANA_TREASURY_ADDRESS,
   SPARK_PAYMENT_AMOUNT,
