@@ -12,7 +12,8 @@ const { setupPaymentEvents } = require("./src/payment-events");
 const main = async () => {
   const abortController = createExitAwareAbortController();
 
-  // Start Express server for SSE
+  // Start Express server for SSE (Server-Sent Events)
+  // Broadcasts real-time payment notifications to connected frontend clients
   const app = express();
   setupPaymentEvents(app);
 
