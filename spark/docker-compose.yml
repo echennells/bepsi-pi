@@ -1,0 +1,47 @@
+# Development/Testing Configuration
+services:
+  bepsi-pi-dev:
+    build:
+      context: ..
+      dockerfile: spark/Dockerfile
+    container_name: bepsi-pi-development-test
+    env_file:
+      - ../docker-test.env
+    environment:
+      - NODE_ENV=development
+      - DEV_MODE=true
+      - TESTING=true
+      - DEBUG=spark:*
+    volumes:
+      # Mount source code for development hot-reloading
+      - ../src:/app/src:ro
+      - ../index.js:/app/index.js:ro
+    ports:
+      - "3000:3000"  # Expose for testing
+      - "3500:3500"  # SSE payment events
+    restart: "no"  # Don't auto-restart in development
+    # Enhanced logging for debugging payment detection
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    # Add development labels
+    labels:
+      - "purpose=development"
+      - "environment=testing"
+      - "production=false"
+    # Add health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - default
+      - nocodb_default
+
+networks:
+  nocodb_default:
+    external: true

@@ -6,15 +6,15 @@ const { NOCODB_API_TOKEN } = require("./env");
 let isDispensing = false;
 
 const NOCO_CREATE_NEW_PURCHASE_URL =
-  "https://nocodb.dctrl.wtf/api/v1/db/data/v1/bepsi/purchases";
+  process.env.NOCO_CREATE_NEW_PURCHASE_URL || "https://nocodb.dctrl.wtf/api/v1/db/data/v1/bepsi/purchases";
 
 const pinToItem = {
-  4: "lime",
-  5: "strawberry",
-  6: "grapefruit",
-  12: "cherry",
-  13: "purple",
-  16: "orange",
+  516: "coke",
+  517: "iced tea",
+  518: "poppi",
+  524: "bubbly",
+  525: "cooler",
+  528: "beer",
 };
 
 const getDispenseItemGivenPin = (pinNo) =>
@@ -45,7 +45,7 @@ const dispenseFromDiscord = async (pinNo) => {
       NOCO_CREATE_NEW_PURCHASE_URL,
       {
         currency: "discord",
-        timestamp: nowTimestamp(),
+        timestamp: new Date().toISOString(),
         item: getDispenseItemGivenPin(pinNo),
       },
       {
@@ -64,12 +64,20 @@ const dispenseFromDiscord = async (pinNo) => {
 };
 
 const dispenseFromPayments = async (pinNo, currency) => {
+  // Only handle physical dispensing - logging is done by logPayment()
+  console.log("Dispensing pin " + pinNo);
+  dispense(pinNo);
+};
+
+const logPayment = async (pinNo, currency, amount = null, paymentMethod = "unknown") => {
   await axios
     .post(
       NOCO_CREATE_NEW_PURCHASE_URL,
       {
         currency,
-        timestamp: nowTimestamp(),
+        amount: amount,
+        payment_method: paymentMethod,
+        timestamp: new Date().toISOString(),
         item: getDispenseItemGivenPin(pinNo),
       },
       {
@@ -81,10 +89,8 @@ const dispenseFromPayments = async (pinNo, currency) => {
       },
     )
     .catch((e) =>
-      console.log(`[dispenseFromDiscord] POST TO NOCODE DB FAILURE ${e}`),
+      console.log(`[logPayment] POST TO NOCODE DB FAILURE ${e}`),
     );
-  console.log("Dispensing pin " + pinNo);
-  dispense(pinNo);
 };
 
 // Right to left, pins
@@ -94,4 +100,5 @@ module.exports = {
   dispense,
   dispenseFromDiscord,
   dispenseFromPayments,
+  logPayment,
 };

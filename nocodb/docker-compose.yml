@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  nocodb:
+    image: nocodb/nocodb:latest
+    container_name: nocodb-test
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./data:/usr/app/data/
+    environment:
+      # SQLite configuration
+      - NC_DB=sqlite3://usr/app/data/noco.db?d=1
+      - DB_TYPE=sqlite3
+      - DB_FILE=/usr/app/data/noco.db
+    restart: unless-stopped
