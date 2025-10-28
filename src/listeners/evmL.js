@@ -1,6 +1,6 @@
 const { ethers } = require("ethers");
 const abiDecoder = require("abi-decoder");
-const { dispenseFromPayments } = require("../machine");
+const { dispenseFromPayments, logPayment } = require("../machine");
 const { VENDOR_SELECTION_TO_PIN_MAPPING, NETWORKS } = require("../constants");
 const {
   match,
@@ -76,6 +76,8 @@ const handleStablecoinPayments = async (from, amount, network, stablecoin) => {
   console.log(`[EVM] 🥤 Dispensing ${productName}...`);
 
   try {
+    const numericAmount = parseFloat(formattedAmount);
+    logPayment(pin, stablecoin.symbol, numericAmount, "evm");
     await dispenseFromPayments(pin, stablecoin.symbol);
     console.log(`[EVM] ✅ Dispense successful for pin ${pin}`);
   } catch (error) {
