@@ -55,25 +55,14 @@ const handleStablecoinPayments = async (from, amount, network, stablecoin) => {
     console.log(`[EVM]    - Random pin selected: ${pin}`);
   }
 
-  // Get product name
-  const productNames = {
-    516: "coke",
-    517: "iced tea",
-    518: "poppi",
-    524: "bubbly",
-    525: "cooler",
-    528: "beer"
-  };
-  const productName = productNames[pin] || `pin ${pin}`;
-
   console.log(`[EVM] ✅ PAYMENT ACCEPTED!`);
   console.log(`[EVM] 📦 Payment Summary:`);
   console.log(`[EVM]    - Amount: ${formattedAmount} ${stablecoin.symbol}`);
   console.log(`[EVM]    - Network: ${network.name}`);
   console.log(`[EVM]    - From: ${from}`);
   console.log(`[EVM]    - Selection: ${selection}`);
-  console.log(`[EVM]    - Pin: ${pin} (${productName})`);
-  console.log(`[EVM] 🥤 Dispensing ${productName}...`);
+  console.log(`[EVM]    - Pin: ${pin}`);
+  console.log(`[EVM] 🥤 Dispensing pin ${pin}...`);
 
   try {
     const numericAmount = parseFloat(formattedAmount);
