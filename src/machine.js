@@ -8,14 +8,15 @@ let isDispensing = false;
 const NOCO_CREATE_NEW_PURCHASE_URL =
   process.env.NOCO_CREATE_NEW_PURCHASE_URL || "https://nocodb.dctrl.wtf/api/v1/db/data/v1/bepsi/purchases";
 
-const pinToItem = {
-  516: "coke",
-  517: "iced tea",
-  518: "poppi",
-  524: "bubbly",
-  525: "cooler",
-  528: "beer",
-};
+// Build pin to item mapping from environment variables
+const VENDING_PINS = [516, 517, 518, 524, 525, 528];
+const pinToItem = {};
+VENDING_PINS.forEach(pin => {
+  const envName = process.env[`PIN_${pin}_NAME`];
+  if (envName) {
+    pinToItem[pin] = envName;
+  }
+});
 
 const getDispenseItemGivenPin = (pinNo) =>
   pinToItem[pinNo] || `unmarked-${pinNo}`;

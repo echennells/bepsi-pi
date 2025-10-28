@@ -26,7 +26,7 @@ const getVendingPins = () => {
 
 // Get human-readable name for a pin
 const getPinName = (pinNo) => {
-  return process.env[`SPARK_PIN_${pinNo}_NAME`] || `pin ${pinNo}`;
+  return process.env[`PIN_${pinNo}_NAME`] || `pin ${pinNo}`;
 };
 
 // Create mapping of pin numbers to human-readable names
