@@ -79,7 +79,7 @@ pm2 logs bepsi-pi
 This vending machine supports multiple payment methods:
 
 ### Spark Network (Bitcoin L2)
-See [SPARK_SETUP.md](SPARK_SETUP.md) for complete setup instructions including:
+See [docs/spark-setup.md](docs/spark-setup.md) for complete setup instructions including:
 - Wallet generation for each vending pin
 - Environment configuration
 - Token support setup
