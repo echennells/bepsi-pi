@@ -101,7 +101,13 @@ const pinWallets = new Map(); // Wallet instances for each pin
 const previousSatsBalances = new Map();
 const previousTokenBalances = new Map();
 let initialBalanceScanComplete = false;
-const satsProcessedViaEvent = new Set();
+const processedTransferIds = new Set(); // Track transfer IDs, not pins
+
+// Connection health monitoring
+const lastEventTimestamp = new Map(); // Track last event time per pin
+const lastWarningTimestamp = new Map(); // Track last warning time per pin
+const HEARTBEAT_TIMEOUT = 120000; // 2 minutes - warn if no events
+const WARNING_INTERVAL = 300000; // 5 minutes - only warn once per 5 min
 
 // ============================================================================
 // Utility Functions
@@ -140,55 +146,146 @@ const getWalletForProduct = async (pinNo) => {
 // ============================================================================
 
 const setupEventEmitterForPin = (pinNo, wallet) => {
-  wallet.on('transfer:claimed', async (transferId) => {
+  // Handler for both deposit and transfer events (to avoid duplicate code)
+  const handlePaymentEvent = async (eventId, updatedBalance, eventType) => {
     if (!initialBalanceScanComplete) {
       return;
     }
 
     try {
-      const currentBalance = await wallet.getBalance();
-      const currentSatsNum = Number(currentBalance.balance);
-      const previousSats = previousSatsBalances.get(pinNo) || 0;
       const paymentRequest = pinPaymentAddresses.get(pinNo);
-
       if (!paymentRequest) {
         return;
       }
 
+      const timestamp = new Date().toISOString();
+      lastEventTimestamp.set(pinNo, Date.now()); // Update heartbeat
+
+      // HYBRID APPROACH: Event fires as trigger, but we call getBalance() for accuracy
+      // Don't trust updatedBalance - it's been buggy (reported 512 for 1000 sat payments)
+      console.log(`[Spark] 🔔 ${eventType} event fired for pin ${pinNo} at ${timestamp}`);
+      console.log(`[Spark] - Transfer ID: ${eventId}`);
+      console.log(`[Spark] - Event reported balance: ${Number(updatedBalance)} sats (may be inaccurate)`);
+
+      // Get actual balance from API
+      const currentBalance = await wallet.getBalance();
+      const currentSatsNum = Number(currentBalance.balance);
+      const previousSats = previousSatsBalances.get(pinNo) || 0;
       const requiredAmount = parseInt(paymentRequest.amount);
-      const satsIncrease = currentSatsNum - previousSats;
 
-      if (currentSatsNum >= requiredAmount && currentSatsNum > previousSats) {
-        console.log(`[Spark] ✅ SATS PAYMENT DETECTED (EventEmitter) for pin ${pinNo}!`);
-        console.log(`[Spark] - Transfer ID: ${transferId}`);
-        console.log(`[Spark] - Amount: ${satsIncrease} sats`);
-        console.log(`[Spark] - New balance: ${currentSatsNum} sats`);
-        console.log(`[Spark] - Required: ${requiredAmount} sats`);
-        console.log(`[Spark] - Address: ${paymentRequest.address}`);
+      // DEBUG: Log full balance object to see internal structure
+      console.log(`[Spark] 🔍 DEBUG - Full balance object for pin ${pinNo}:`);
+      console.log(`[Spark] - balance: ${currentBalance.balance}`);
+      console.log(`[Spark] - balance type: ${typeof currentBalance.balance}`);
+      if (currentBalance.availableBalance !== undefined) {
+        console.log(`[Spark] - availableBalance: ${currentBalance.availableBalance}`);
+      }
+      if (currentBalance.pendingBalance !== undefined) {
+        console.log(`[Spark] - pendingBalance: ${currentBalance.pendingBalance}`);
+      }
+      if (currentBalance.lockedBalance !== undefined) {
+        console.log(`[Spark] - lockedBalance: ${currentBalance.lockedBalance}`);
+      }
+      console.log(`[Spark] - tokenBalances.size: ${currentBalance.tokenBalances?.size || 0}`);
+      console.log(`[Spark] - Full object keys: ${Object.keys(currentBalance).join(', ')}`);
 
+      console.log(`[Spark] - Actual balance from API: ${currentSatsNum} sats`);
+      console.log(`[Spark] - Previous balance: ${previousSats} sats`);
+      console.log(`[Spark] - Required amount: ${requiredAmount} sats`);
+
+      // Calculate balance increase (handles both first payment and subsequent payments)
+      const balanceIncrease = currentSatsNum - previousSats;
+      console.log(`[Spark] - Balance increase: ${balanceIncrease} sats`);
+
+      // If balance increased by >= requiredAmount, dispense (works for multiple payments)
+      if (balanceIncrease >= requiredAmount) {
+        // Deduplication: only process each transfer ID once (handles chunking/duplicate events)
+        if (!processedTransferIds.has(eventId)) {
+          console.log(`[Spark] ✅ SATS PAYMENT DETECTED (${eventType}) for pin ${pinNo}!`);
+          console.log(`[Spark] - Transfer ID: ${eventId}`);
+          console.log(`[Spark] - Payment amount: ${balanceIncrease} sats`);
+          console.log(`[Spark] - New balance: ${currentSatsNum} sats`);
+          console.log(`[Spark] - Address: ${paymentRequest.address}`);
+
+          previousSatsBalances.set(pinNo, currentSatsNum);
+          processedTransferIds.add(eventId);
+
+          console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
+          logPayment(pinNo, "sats", balanceIncrease, "spark");
+          dispenseFromPayments(pinNo, "sats");
+
+          // Notify frontend via SSE
+          const drinkName = getPinName(pinNo);
+          notifyPaymentSuccess(pinNo, paymentRequest.address, drinkName, "sats", balanceIncrease);
+        } else {
+          console.log(`[Spark] ⚠️  Already processed transfer ${eventId} - ignoring duplicate event`);
+        }
+      } else if (balanceIncrease > 0 && balanceIncrease < requiredAmount) {
+        console.log(`[Spark] ℹ️  Balance increased by ${balanceIncrease} sats but insufficient (need ${requiredAmount})`);
         previousSatsBalances.set(pinNo, currentSatsNum);
-        satsProcessedViaEvent.add(transferId);
-
-        console.log(`[Spark] 🥤 Dispensing for pin ${pinNo}...`);
-        logPayment(pinNo, "sats", satsIncrease, "spark");
-        dispenseFromPayments(pinNo, "sats");
-
-        // Notify frontend via SSE
-        const drinkName = getPinName(pinNo);
-        notifyPaymentSuccess(pinNo, paymentRequest.address, drinkName, "sats", satsIncrease);
+      } else if (balanceIncrease > 0) {
+        console.log(`[Spark] ℹ️  Balance increased but already processing this payment`);
+        previousSatsBalances.set(pinNo, currentSatsNum);
+      } else {
+        console.log(`[Spark] ℹ️  No balance change or duplicate event`);
       }
     } catch (error) {
-      console.error(`[Spark] Error handling transfer event for pin ${pinNo}:`, error.message);
+      console.error(`[Spark] Error handling ${eventType} event for pin ${pinNo}:`, error.message);
     }
+  };
+
+  // HYBRID APPROACH: Events trigger immediately, then we verify with getBalance()
+  // Listen to transfer:claimed - fires when transfer is claimed
+  wallet.on('transfer:claimed', async (transferId, updatedBalance) => {
+    await handlePaymentEvent(transferId, updatedBalance, 'transfer:claimed');
   });
 
   wallet.on('stream:connected', () => {
-    console.log(`[Spark] 🔗 EventEmitter connected for pin ${pinNo} (sats detection active)`);
+    const timestamp = new Date().toISOString();
+    lastEventTimestamp.set(pinNo, Date.now());
+    console.log(`[Spark] 🔗 EventEmitter connected for pin ${pinNo} at ${timestamp}`);
+    console.log(`[Spark] - Sats detection: ACTIVE (event-based)`);
+    console.log(`[Spark] - Connection health: OK`);
   });
 
   wallet.on('stream:disconnected', (reason) => {
-    console.log(`[Spark] ⚠️  EventEmitter disconnected for pin ${pinNo}: ${reason}`);
+    const timestamp = new Date().toISOString();
+    const lastEventTime = lastEventTimestamp.get(pinNo);
+    const downtime = lastEventTime ? Date.now() - lastEventTime : 'unknown';
+    console.log(`[Spark] ⚠️  EventEmitter disconnected for pin ${pinNo} at ${timestamp}`);
+    console.log(`[Spark] - Reason: ${reason}`);
+    console.log(`[Spark] - Last event was ${downtime}ms ago`);
+    console.log(`[Spark] - WARNING: Payments may be missed during outage!`);
   });
+
+  wallet.on('stream:reconnecting', (attempt, maxAttempts, delayMs, error) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[Spark] 🔄 Reconnecting stream for pin ${pinNo} at ${timestamp}`);
+    console.log(`[Spark] - Attempt ${attempt}/${maxAttempts}`);
+    console.log(`[Spark] - Retry in ${delayMs}ms`);
+    console.log(`[Spark] - Error: ${error}`);
+    console.log(`[Spark] - Error type: ${error?.constructor?.name || 'unknown'}`);
+  });
+};
+
+// Monitor connection health - warn if no events received recently
+const checkConnectionHealth = () => {
+  const now = Date.now();
+  for (const [pinNo, lastEvent] of lastEventTimestamp) {
+    const timeSinceLastEvent = now - lastEvent;
+    if (timeSinceLastEvent > HEARTBEAT_TIMEOUT) {
+      // Only warn once every WARNING_INTERVAL (5 min) to avoid spam
+      const lastWarning = lastWarningTimestamp.get(pinNo) || 0;
+      const timeSinceLastWarning = now - lastWarning;
+
+      if (timeSinceLastWarning > WARNING_INTERVAL) {
+        const minutesIdle = Math.floor(timeSinceLastEvent / 60000);
+        const pinName = getPinName(pinNo);
+        console.log(`[Spark] ⚠️  Connection idle ${minutesIdle}m - pin ${pinNo} (${pinName}) - possible missed payments`);
+        lastWarningTimestamp.set(pinNo, now);
+      }
+    }
+  }
 };
 
 const checkForTokenPayments = async () => {
@@ -196,9 +293,9 @@ const checkForTokenPayments = async () => {
     for (const [pinNo, paymentRequest] of pinPaymentAddresses) {
       const wallet = await getWalletForProduct(pinNo);
       const currentBalance = await wallet.getBalance();
-      const currentSatsNum = Number(currentBalance.balance);
 
-      previousSatsBalances.set(pinNo, currentSatsNum);
+      // SATS: Don't update previousSatsBalances here - only event handler should do that
+      // (Otherwise polling interferes with event-based threshold detection)
 
       for (const [tokenKey, tokenConfig] of Object.entries(SUPPORTED_TOKENS)) {
         try {
@@ -264,7 +361,7 @@ const checkForTokenPayments = async () => {
     if (!initialBalanceScanComplete) {
       initialBalanceScanComplete = true;
       console.log('[Spark] Initial balance scan complete');
-      console.log('[Spark] - Sats: EventEmitter (real-time)');
+      console.log('[Spark] - Sats: HYBRID approach (event-triggered + balance verification)');
       console.log('[Spark] - Tokens: Polling (5-second intervals)');
     }
 
@@ -286,6 +383,8 @@ const sweepAllFundsToTreasury = async () => {
     return;
   }
 
+  console.log(`[Spark] 🧹 Starting treasury sweep...`);
+
   // Sweep from each pin wallet
   const allPins = getVendingPins();
 
@@ -295,6 +394,23 @@ const sweepAllFundsToTreasury = async () => {
       const balance = await pinWallet.getBalance();
       const availableSats = Number(balance.balance);
 
+      // Get wallet identity for logging
+      const walletIdentity = await pinWallet.getSparkAddress();
+      const pinName = getPinName(pinNo);
+
+      // DEBUG: Log balance structure during sweep
+      console.log(`[Spark] 🔍 DEBUG - Balance check for pin ${pinNo} (${pinName})`);
+      console.log(`[Spark] - balance: ${balance.balance} (type: ${typeof balance.balance})`);
+      if (balance.availableBalance !== undefined) {
+        console.log(`[Spark] - availableBalance: ${balance.availableBalance}`);
+      }
+      if (balance.pendingBalance !== undefined) {
+        console.log(`[Spark] - pendingBalance: ${balance.pendingBalance}`);
+      }
+      if (balance.lockedBalance !== undefined) {
+        console.log(`[Spark] - lockedBalance: ${balance.lockedBalance}`);
+      }
+
       // Check and sweep sats
       if (availableSats > 100) {
         try {
@@ -302,9 +418,14 @@ const sweepAllFundsToTreasury = async () => {
             receiverSparkAddress: treasuryAddress,
             amountSats: availableSats
           });
-          console.log(`[Spark] ✅ Swept ${availableSats} sats from pin ${pinNo}`);
+          console.log(`[Spark] ✅ Swept ${availableSats} sats from pin ${pinNo} (${pinName})`);
+          console.log(`[Spark]    From wallet: ${walletIdentity}`);
+          console.log(`[Spark]    To treasury: ${treasuryAddress}`);
+
+          // Note: processedTransferIds tracks by transfer ID (not pin), so no need to clear here
+          // New payments will have new transfer IDs and will be detected automatically
         } catch (err) {
-          console.error(`[Spark] ❌ Failed to sweep ${availableSats} sats from pin ${pinNo}:`, err.message);
+          console.error(`[Spark] ❌ Failed to sweep ${availableSats} sats from pin ${pinNo} (${pinName}):`, err.message);
         }
       }
 
@@ -314,7 +435,8 @@ const sweepAllFundsToTreasury = async () => {
           try {
             const rawAmount = BigInt(tokenData.balance);
             if (rawAmount > 0n) {
-              const decimals = tokenData.decimals || 0;
+              // BEPSI tokens have 6 decimals - hardcode since blockchain metadata is wrong
+              const decimals = 6;
               const divisor = Math.pow(10, decimals);
               const tokenAmount = Number(rawAmount) / divisor;
 
@@ -324,10 +446,12 @@ const sweepAllFundsToTreasury = async () => {
                 receiverSparkAddress: treasuryAddress
               });
 
-              console.log(`[Spark] ✅ Swept ${tokenAmount} tokens from pin ${pinNo}`);
+              console.log(`[Spark] ✅ Swept ${tokenAmount} tokens (${tokenId}) from pin ${pinNo} (${pinName})`);
+              console.log(`[Spark]    From wallet: ${walletIdentity}`);
+              console.log(`[Spark]    To treasury: ${treasuryAddress}`);
             }
           } catch (tokenErr) {
-            console.error(`[Spark] ❌ Failed to sweep tokens from pin ${pinNo}:`, tokenErr.message);
+            console.error(`[Spark] ❌ Failed to sweep tokens from pin ${pinNo} (${pinName}):`, tokenErr.message);
           }
         }
       }
@@ -336,8 +460,7 @@ const sweepAllFundsToTreasury = async () => {
     }
   }
 
-  // Only log if something was actually swept
-  console.log(`[Spark] Fund sweep complete`);
+  console.log(`[Spark] ✅ Treasury sweep complete`);
 };
 
 // ============================================================================
@@ -400,7 +523,10 @@ const startSparkListener = async () => {
 
     setInterval(async () => {
       await checkForTokenPayments();
-    }, 5000);
+    }, 5000); // 5-second polling for tokens only (sats use events)
+
+    // Connection health monitoring disabled - idle connections are normal when no payments occur
+    // If needed for debugging, re-enable the checkConnectionHealth interval
 
     // Check if treasury is configured
     const treasuryAddress = getTreasuryAddress();
