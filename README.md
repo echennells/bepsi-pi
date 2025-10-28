@@ -93,5 +93,3 @@ Configure `LIGHTNING_LNBIT_URL` in `.env` for LNbits integration
 
 ### Solana
 Configure `SOLANA_TREASURY_ADDRESS` in `.env` for Solana payments
-
-The system is resilient - if any payment method is misconfigured, other methods continue working normally.
