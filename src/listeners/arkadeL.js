@@ -9,9 +9,19 @@ const startArkadeListener = async () => {
   // Create a new WebSocket connection
   const ws = new WebSocket(arkWsUrl);
 
+  // Keepalive ping interval to prevent 60-second timeout
+  let pingInterval;
+
   // Event listener for when the connection is open
   await ws.on("open", function open() {
     console.log("Connected to BTCPay " + arkWsUrl);
+
+    // Send ping every 30 seconds to keep connection alive
+    pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.ping();
+      }
+    }, 30000);
   });
 
   // Event listener for when a message is received from the server
@@ -28,7 +38,12 @@ const startArkadeListener = async () => {
   });
 
   ws.onclose = (event) => {
-    const reconnectInterval = 1000; // 60000 milliseconds = 1 minute
+    // Clear ping interval on close
+    if (pingInterval) {
+      clearInterval(pingInterval);
+    }
+
+    const reconnectInterval = 1000;
     console.log("Connection cannot be established. Reconnecting in 1 second");
     setTimeout(startArkadeListener, reconnectInterval);
   };
