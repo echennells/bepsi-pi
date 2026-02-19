@@ -1,0 +1,17 @@
+# Spark SDK Test Environment
+# Copy to test.env and fill in values
+# Generate a fresh wallet with: npm run generate (or node generate-wallet.mjs)
+
+# Test wallet (pin 516 only)
+SPARK_PIN_516_MNEMONIC=your twelve word mnemonic goes here replace this placeholder text now
+SPARK_PIN_516_ADDRESS=spark1pgsYOUR_ADDRESS_HERE
+SPARK_PIN_516_AMOUNT=1000
+
+# Token configuration
+SPARK_BEPSITOKEN_IDENTIFIER=btkn1xecvlqngfwwvw2z38s67rn23r76m2vpkmwavfr9cr6ytzgqufu0ql0a4qk
+SPARK_BEPSITOKEN_NAME=Bepsi Token
+SPARK_BEPSITOKEN_PIN_516_AMOUNT=1.0
+
+# Funded test wallets for detection/transfer tests (07, 08, 09)
+SPARK_WALLET_B_MNEMONIC=your twelve word mnemonic for wallet b
+SPARK_WALLET_C_MNEMONIC=your twelve word mnemonic for wallet c

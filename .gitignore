@@ -110,4 +110,8 @@ dist
 Dockerfile
 docker-compose.yml
 
+# SDK test environment
+sdk-test/test.env
+sdk-test/node_modules/
+
 .env

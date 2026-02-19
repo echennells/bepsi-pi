@@ -1,0 +1,20 @@
+{
+  "name": "spark-sdk-test",
+  "type": "module",
+  "dependencies": {
+    "@buildonspark/spark-sdk": "latest",
+    "bip39": "^3.1.0",
+    "dotenv": "^16.0.3"
+  },
+  "scripts": {
+    "test": "node tests/run-all.mjs",
+    "test:init": "node tests/01-init-wallet.mjs",
+    "test:balance": "node tests/02-balance-api.mjs",
+    "test:events": "node tests/03-events.mjs",
+    "test:tokens": "node tests/04-token-decimals.mjs",
+    "test:invoices": "node tests/05-invoices.mjs",
+    "test:query": "node tests/06-query-tokens.mjs",
+    "test:detect": "node tests/07-detection.mjs",
+    "generate": "node generate-wallet.mjs"
+  }
+}
