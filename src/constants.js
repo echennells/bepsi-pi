@@ -4,7 +4,10 @@ const NETWORKS = {
   polygon: {
     implementation: "EVM",
     name: "Polygon",
-    rpc: "https://polygon-rpc.com/",
+    // polygon-rpc.com answers 401 without an API key since ~Oct 2026. The listener tries
+    // rpcFallbacks in order when the current RPC keeps failing (EVM_RPC_<NAME> overrides).
+    rpc: "https://polygon-bor-rpc.publicnode.com",
+    rpcFallbacks: ["https://polygon.drpc.org"],
     stablecoins: [
       {
         symbol: "USDC",
@@ -21,7 +24,9 @@ const NETWORKS = {
   base: {
     implementation: "EVM",
     name: "Base",
-    rpc: "https://mainnet.base.org",
+    // mainnet.base.org rate-limits eth_getLogs (429).
+    rpc: "https://base-rpc.publicnode.com",
+    rpcFallbacks: ["https://mainnet.base.org", "https://base.drpc.org"],
     stablecoins: [
       {
         symbol: "USDC",
@@ -34,6 +39,7 @@ const NETWORKS = {
     implementation: "EVM",
     name: "Arbitrum",
     rpc: "https://arb1.arbitrum.io/rpc",
+    rpcFallbacks: ["https://arbitrum.drpc.org"],
     stablecoins: [
       {
         symbol: "USDC.e",
@@ -50,7 +56,9 @@ const NETWORKS = {
   optimism: {
     implementation: "EVM",
     name: "Optimism",
-    rpc: "https://rpc.ankr.com/optimism",
+    // Ankr's endpoint requires an API key now.
+    rpc: "https://mainnet.optimism.io",
+    rpcFallbacks: ["https://optimism-rpc.publicnode.com"],
     stablecoins: [
       {
         symbol: "USDC",
