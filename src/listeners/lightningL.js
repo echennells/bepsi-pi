@@ -20,10 +20,12 @@ const startLightningListener = async () => {
     //console.log('Received message from server:', data);
     const messageStr = data.toString("utf-8"); // Convert buffer to string
     console.log("Received message from LNbits server:", messageStr);
-    // example: 0-1000 or 516-1000
-    const parts = messageStr.split("-");
-    const pinNo = parts[0];
-    const amount = parts[1] ? parseInt(parts[1]) : null;
+    // example: 0-1000 or 516-1000. The LNbits Bitcoin Switch sends "<pin>-<relay on-time in
+    // ms>", not the price, so the price comes from LIGHTNING_PIN_<pin>_AMOUNT (sats), set to
+    // match the switch's prices in LNbits. Unset means the sale is recorded without an amount.
+    const pinNo = messageStr.split("-")[0];
+    const price = parseInt(process.env[`LIGHTNING_PIN_${pinNo}_AMOUNT`], 10);
+    const amount = Number.isNaN(price) ? null : price;
 
     logPayment(pinNo, "sats", amount, "lightning");
     dispenseFromPayments(pinNo, "sats");

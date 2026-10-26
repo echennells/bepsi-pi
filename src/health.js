@@ -5,6 +5,7 @@ const { isServiceEnabled } = require("./env");
 const { getSparkHealth } = require("./listeners/sparkL");
 const { getSolanaHealth } = require("./listeners/solanaL");
 const { getEvmHealth } = require("./listeners/evmL");
+const { getLedgerHealth } = require("./ledger");
 
 // ---------------------------------------------------------------- process + host stats
 // CPU is sampled once a minute, so /health reports a steady 1-minute average no matter who polls it.
@@ -169,6 +170,7 @@ const setupHealthEndpoint = (app) => {
       spark,
       solana: isServiceEnabled("solana") ? getSolanaHealth() : null,
       evm: isServiceEnabled("evm") ? getEvmHealth() : null,
+      ledger: getLedgerHealth(),
     });
   });
 };

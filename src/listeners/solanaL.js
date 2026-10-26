@@ -15,7 +15,7 @@ const {
   VENDOR_SELECTION_TO_PIN_MAPPING,
 } = require("../constants.js");
 const { SOLANA_TREASURY_ADDRESS } = require("../env.js");
-const { dispenseFromPayments } = require("../machine");
+const { dispenseFromPayments, logPayment } = require("../machine");
 
 const ORDER_MEMO_REGEX = new RegExp(
   '^Program log: Memo \\(len \\d+\\): "YVR-BEPSI:0:(\\d+)"$'
@@ -191,6 +191,12 @@ async function handleSignature(watcher, signature, abortSignal) {
     } selection: ${vendorSelection}, pin ${pin}, dispensing...`
   );
   watcher.health.lastPaymentAt = Date.now();
+  logPayment(
+    pin,
+    watcher.symbol,
+    parseFloat(ethers.utils.formatUnits(transferAmount, watcher.decimals)),
+    "solana"
+  );
   await dispenseFromPayments(pin, watcher.symbol);
   return true;
 }
@@ -398,4 +404,5 @@ const getSolanaHealth = () => ({
 module.exports = {
   startSolanaListener,
   getSolanaHealth,
+  _test: { handleSignature },
 };

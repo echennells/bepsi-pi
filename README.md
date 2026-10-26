@@ -89,7 +89,22 @@ Configure `PAYMENT_ADDRESS` in `.env` to accept MATIC/DAI/USDC/USDT
 Configure `ARKADE_WS_URL` in `.env` for Ark payments via BTCPay websockets
 
 ### Lightning Network
-Configure `LIGHTNING_LNBIT_URL` in `.env` for LNbits integration
+Configure `LIGHTNING_LNBIT_URL` in `.env` for LNbits integration. LNbits only tells bepsi
+which pin to dispense, not the price, so set `LIGHTNING_PIN_<pin>_AMOUNT` (sats) to match each
+drink's price in LNbits; sales on a pin without one are recorded with no amount.
 
 ### Solana
 Configure `SOLANA_TREASURY_ADDRESS` in `.env` for Solana payments
+
+## Sales ledger
+
+Every sale (all payment methods, plus Discord dispenses) is recorded in the purchases ledger,
+a small SQLite service shared with the spiro machine:
+
+- `LEDGER_URL`: the ledger's purchases endpoint, e.g. `http://<ledger-host>:8888/purchases`
+- `LEDGER_TOKEN`: the ledger's access token
+- `LEDGER_MACHINE` (optional, default `bepsi`): the machine name rows are tagged with
+
+A sale the ledger doesn't accept is kept in `ledger-queue.json` and retried every minute, so it
+is recorded late rather than lost. `/health` has a `ledger` section showing whether the ledger
+is reachable and how many sales are waiting to be sent.

@@ -9,6 +9,7 @@ const { startLightningListener } = require("./src/listeners/lightningL");
 const { startSparkListener } = require("./src/listeners/sparkL");
 const { isServiceEnabled } = require("./src/env");
 const { setupPaymentEvents } = require("./src/payment-events");
+const { startLedger } = require("./src/ledger");
 const { installProcessHandlers, startMemoryGuard, setupHealthEndpoint } = require("./src/health");
 
 installProcessHandlers();
@@ -22,6 +23,7 @@ const main = async () => {
   setupPaymentEvents(app);
   setupHealthEndpoint(app);
   startMemoryGuard();
+  startLedger();
 
   const server = app.listen(3500, () => {
     console.log("[SSE] Payment events server running on port 3500");

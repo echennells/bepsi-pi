@@ -112,3 +112,7 @@ docker-compose.yml
 
 .env
 heapsnapshots/
+
+# Sales not yet accepted by the purchases ledger (src/ledger.js)
+ledger-queue.json
+ledger-queue.json.tmp

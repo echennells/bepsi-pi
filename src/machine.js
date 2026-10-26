@@ -1,12 +1,8 @@
 const { Gpio } = require("onoff");
-const axios = require("axios");
-const { sleep, nowTimestamp } = require("./common");
-const { NOCODB_API_TOKEN } = require("./env");
+const { sleep } = require("./common");
+const { recordSale } = require("./ledger");
 
 let isDispensing = false;
-
-const NOCO_CREATE_NEW_PURCHASE_URL =
-  process.env.NOCO_CREATE_NEW_PURCHASE_URL || "https://nocodb.dctrl.wtf/api/v1/db/data/v1/bepsi/purchases";
 
 // Build pin to item mapping from environment variables
 const VENDING_PINS = [516, 517, 518, 524, 525, 528];
@@ -39,31 +35,10 @@ const dispense = async (pinNo) => {
   isDispensing = false;
 };
 
-// Wrapper around this so we can easily keep track of things io nocodedb
 const dispenseFromDiscord = async (pinNo) => {
-  // Dispense first; log to NocoDB in the background so a slow/unreachable DB can't delay it.
+  // Dispense first; the ledger write happens in the background so it can't delay it.
   dispense(pinNo);
-
-  axios
-    .post(
-      NOCO_CREATE_NEW_PURCHASE_URL,
-      {
-        currency: "discord",
-        timestamp: new Date().toISOString(),
-        item: getDispenseItemGivenPin(pinNo),
-      },
-      {
-        timeout: 3000,
-        headers: {
-          accept: "application/json",
-          "xc-token": NOCODB_API_TOKEN,
-          "Content-Type": "application/json",
-        },
-      },
-    )
-    .catch((e) =>
-      console.log(`[dispenseFromDiscord] POST TO NOCODE DB FAILURE ${e}`),
-    );
+  logPayment(pinNo, "discord", null, "discord");
 };
 
 const dispenseFromPayments = async (pinNo, currency) => {
@@ -72,30 +47,14 @@ const dispenseFromPayments = async (pinNo, currency) => {
   dispense(pinNo);
 };
 
-const logPayment = async (pinNo, currency, amount = null, paymentMethod = "unknown") => {
-  await axios
-    .post(
-      NOCO_CREATE_NEW_PURCHASE_URL,
-      {
-        currency,
-        amount: amount,
-        payment_method: paymentMethod,
-        timestamp: new Date().toISOString(),
-        item: getDispenseItemGivenPin(pinNo),
-      },
-      {
-        timeout: 3000,
-        headers: {
-          accept: "application/json",
-          "xc-token": NOCODB_API_TOKEN,
-          "Content-Type": "application/json",
-        },
-      },
-    )
-    .catch((e) =>
-      console.log(`[logPayment] POST TO NOCODE DB FAILURE ${e}`),
-    );
-};
+// Records a sale in the purchases ledger. Never throws, and listeners don't wait for it.
+const logPayment = (pinNo, currency, amount = null, paymentMethod = "unknown") =>
+  recordSale({
+    item: getDispenseItemGivenPin(pinNo),
+    currency,
+    amount,
+    paymentMethod,
+  }).catch((error) => console.error("[Ledger] Unexpected error recording sale:", error));
 
 // Right to left, pins
 // [4, 5, 6, 12, 13, 16, 9]

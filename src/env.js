@@ -20,7 +20,7 @@ const SERVICE_ENV_VARS = {
   arkade: ["ARKADE_WS_URL"],
   lightning: ["LIGHTNING_LNBIT_URL"],
   spark: [], // Spark can work with just individual pin configs, no required globals
-  database: ["NOCODB_API_TOKEN"],
+  ledger: ["LEDGER_URL", "LEDGER_TOKEN"],
 };
 
 // Track which services have missing variables
@@ -83,7 +83,6 @@ const isServiceEnabled = (serviceName) => {
 const {
   DISCORD_TOKEN,
   DISCORD_CHANNEL_ID,
-  NOCODB_API_TOKEN,
   PAYMENT_ADDRESS,
   HYPEREVM_PAYMENT_ADDRESS,
   ARKADE_WS_URL,
@@ -100,7 +99,6 @@ if (PAYMENT_ADDRESS) {
 module.exports = {
   DISCORD_TOKEN,
   DISCORD_CHANNEL_ID,
-  NOCODB_API_TOKEN,
   PAYMENT_ADDRESS,
   HYPEREVM_PAYMENT_ADDRESS,
   ARKADE_WS_URL,
